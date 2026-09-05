@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 """
-Soverify - Moroccan Law 08/09 Compliance & Digital Sovereignty Platform
+Soverify Global - Sovereign RegTech & Trust Platform (v5.0.0)
+Multi-Framework Compliance: Morocco (Law 08/09 CNDP) | EU (GDPR) | US California (CCPA/CPRA)
 Platform: PythonAnywhere & Production Flask Runtime (Single-File Architecture)
-Founder: Taha Setri (طه ستري)
-Version: 3.5.0 Sovereign Cyber Edition
+Founder & Architect: Taha Setri (طه ستري) - VerifyOS™
 WSGI Entry Point: application = app
 """
 
@@ -17,17 +17,17 @@ import csv
 import io
 import hashlib
 from datetime import datetime
-from flask import Flask, request, jsonify, Response
+from flask import Flask, request, jsonify, Response, render_template_string
 
 app = Flask(__name__)
 application = app  # PythonAnywhere WSGI requirement
-app.secret_key = os.environ.get("SECRET_KEY", "soverify-morocco-0809-sovereign-vault-2026")
+app.secret_key = os.environ.get("SECRET_KEY", "soverify-sovereign-vault-2026")
 
-# ==============================================================================
-# 🗄️ 1. قاعدة البيانات المحلية لسجل الموافقة (SQLite Database)
-# ==============================================================================
 DB_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "soverify_vault.db")
 
+# ==============================================================================
+# 🗄️ 1. قاعدة البيانات المحلية المتكاملة (SQLite Engine with Leads & Audit Vault)
+# ==============================================================================
 def init_db():
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
@@ -36,11 +36,11 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_identifier TEXT,
             domain TEXT,
+            framework TEXT,
             consent_type TEXT,
             purposes TEXT,
             ip_hash TEXT,
-            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-            cndp_valid BOOLEAN
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
         )
     ''')
     c.execute('''
@@ -48,23 +48,24 @@ def init_db():
             id TEXT PRIMARY KEY,
             target TEXT,
             domain TEXT,
+            framework TEXT,
             score INTEGER,
             status TEXT,
-            fines_mad INTEGER,
+            fines_amount INTEGER,
+            fines_currency TEXT,
             created_at TEXT
         )
     ''')
-    c.execute('SELECT COUNT(*) FROM consent_logs')
-    if c.fetchone()[0] == 0:
-        samples = [
-            ("usr_casablanca_91", "banquepopulaire.ma", "Explicit Opt-In", "ضرورية، تحليلات داخلية مشفرة", "e10adc3949ba59abbe56e057f20f883e", "2026-09-02 10:14:02", 1),
-            ("usr_rabat_44", "e-commerce-maroc.ma", "Refuser Tout", "رفض كافة ملفات التتبع الإعلاني", "c33367701511b4f6020ec61ded352059", "2026-09-03 14:22:19", 1),
-            ("usr_tanger_12", "sante-teleconsult.ma", "Explicit Consent", "معطيات صحية مشفرة (المادة 12)", "1a1dc91c907325c69271ddf0c944bc72", "2026-09-04 09:05:44", 1)
-        ]
-        c.executemany('''
-            INSERT INTO consent_logs (user_identifier, domain, consent_type, purposes, ip_hash, timestamp, cndp_valid)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        ''', samples)
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS breach_subscribers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            email TEXT,
+            domain TEXT,
+            framework TEXT,
+            ip_address TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
     conn.commit()
     conn.close()
 
@@ -74,90 +75,49 @@ except Exception as e:
     print(f"[*] DB Init Note: {e}")
 
 # ==============================================================================
-# 🧠 2. محرك الذكاء الاصطناعي القانوني المحلي (Pure Python Legal AI Engine)
+# 🧠 2. محرك الذكاء الاصطناعي القانوني متعدد الأطر (Legal AI Core)
 # ==============================================================================
-class PurePythonAIEngine:
-    KNOWLEDGE_BASE = [
-        {
-            "topic": "cookies",
-            "keywords": ["كوكيز", "ملفات تعريف", "تتبع", "موافقة", "cookies", "cookie", "analytics", "pixel", "08-2020", "consent", "banner"],
-            "articles": ["المادة 10 من القانون 08.09", "مداولة CNDP رقم 08-2020"],
-            "answer_ar": "وفقاً لمداولة CNDP رقم 08-2020: يمنع تشغيل كوكيز التتبع أو الإحصائيات قبل الحصول على الموافقة الصريحة. يجب أن يتوفر خيار 'رفض الكل' بنفس الوضوح والبروز البصري لزر القبول.",
-            "answer_fr": "Selon la délibération CNDP n° 08-2020 : Tout traceur analytique ou publicitaire est strictement interdit avant le consentement explicite. Le bouton 'Refuser tout' doit être aussi visible.",
-            "answer_en": "Under CNDP Deliberation 08-2020: Tracking cookies cannot be deployed prior to explicit user opt-in. A 'Reject All' button must be as prominent and visible as 'Accept All'.",
-            "remediation": "تثبيت لافتة كوكيز تعطل السكريبتات افتراضياً وتمنح خيار الرفض الفوري."
-        },
-        {
-            "topic": "cross_border",
-            "keywords": ["نقل", "خارج", "خوادم", "استضافة", "سحابية", "aws", "cloud", "transfert", "étranger", "43", "44", "foreign", "serveur"],
-            "articles": ["المادة 43 من القانون 08.09", "المادة 44"],
-            "answer_ar": "تنص المادة 43 على حظر نقل المعطيات الشخصية نحو خوادم خارج المغرب إلا بعد ترخيص رسمي مسبق من CNDP، أو التوطين داخل مراكز بيانات سيادية وطنية معتمدة.",
-            "answer_fr": "L'article 43 interdit tout transfert de données personnelles hors du Maroc sans autorisation préalable expresse de la CNDP. L'hébergement souverain au Maroc garantit la conformité.",
-            "answer_en": "Article 43 strictly prohibits transferring personal data outside Morocco without prior formal CNDP authorization. Hosting inside Moroccan data centers is recommended.",
-            "remediation": "إيداع طلب ترخيص بالنقل للخارج أو نقل قواعد البيانات إلى استضافة مغربية سيادية."
-        },
-        {
-            "topic": "declaration",
-            "keywords": ["تصريح", "إشعار", "ترخيص", "cndp", "déclaration", "autorisation", "d-1", "dpo", "12", "recépissé", "وصل"],
-            "articles": ["المادة 12 من القانون 08.09", "الباب الثاني"],
-            "answer_ar": "كل معالجة لمعطيات شخصية تقتضي تصريحاً مسبقاً (استمارة D-1) لدى CNDP، أو ترخيصاً مسبقاً للمعطيات الحساسة. يجب نشر رقم وصل الإيداع في تذييل الموقع.",
-            "answer_fr": "Tout traitement requiert une déclaration préalable (D-1) auprès de la CNDP. Le numéro de récépissé officiel doit impérativement figurer sur le site.",
-            "answer_en": "Prior notification (Form D-1) to CNDP is legally required. The official receipt reference number must be visibly displayed in the website footer.",
-            "remediation": "استكمال استمارة التصريح D-1 ونشر رقم وصل الإيداع في تذييل الموقع."
-        },
-        {
-            "topic": "penalties",
-            "keywords": ["عقوبة", "عقوبات", "غرامة", "غرامات", "سجن", "حبس", "مخالفة", "penalties", "sanctions", "amende", "prison", "53", "58", "63", "64"],
-            "articles": ["المواد من 53 إلى 64 من القانون 08.09"],
-            "answer_ar": "يقر القانون 08.09 عقوبات مالية وجنائية: غرامات تصل إلى 100,000 درهم لغياب التصريح (المادة 53)، وغرامات حتى 200,000 درهم وحبس من 3 أشهر إلى سنتين للإخلال بالأمن (المادة 58) أو نقل المعطيات للخارج بدون ترخيص (المادة 63).",
-            "answer_fr": "La loi 08-09 prévoit des amendes jusqu'à 100 000 MAD pour défaut de déclaration (art. 53), et jusqu'à 200 000 MAD avec prison jusqu'à 2 ans pour défaut de sécurité (art. 58).",
-            "answer_en": "Law 08-09 imposes fines up to 100,000 MAD for non-declaration (Art. 53), and up to 200,000 MAD plus up to 2 years imprisonment for security breaches or illegal transfer.",
-            "remediation": "التدقيق الدوري، تفعيل التشفير الشامل وتوثيق رخص CNDP الرسمية فوراً."
-        },
-        {
-            "topic": "rights",
-            "keywords": ["حقوق", "حق", "ولوج", "تصحيح", "تعرض", "مسح", "إخبار", "droits", "accès", "rectification", "opposition", "rights", "access"],
-            "articles": ["المواد 5 و 7 و 8 و 9 من القانون 08.09"],
-            "answer_ar": "يضمن القانون 08.09 حقوقاً غير قابلة للتنازل: حق الإخبار (المادة 5)، حق الولوج (المادة 7)، حق التصحيح والتحيين (المادة 8)، وحق التعرض (المادة 9).",
-            "answer_fr": "La loi 08-09 garantit le droit à l'information (art. 5), d'accès (art. 7), de rectification (art. 8) et d'opposition pour motifs légitimes (art. 9).",
-            "answer_en": "Moroccan Law guarantees non-negotiable data subject rights: information (Art. 5), access (Art. 7), rectification (Art. 8), and opposition (Art. 9).",
-            "remediation": "تخصيص بريد DPO رسمي أو نموذج رقمي للاستجابة لطلبات المواطنين في أجل 30 يوماً."
-        }
-    ]
+class GlobalAIEngine:
+    KNOWLEDGE = {
+        "cndp": [
+            {"kw": ["كوكيز", "cookies", "08-2020", "تتبع"], "art": ["المادة 10", "مداولة 08-2020"], "ar": "بموجب مداولة CNDP رقم 08-2020: يمنع تفعيل كوكيز التتبع قبل الموافقة الصريحة. يجب أن يكون زر 'رفض الكل' واضحاً ومتكافئاً.", "rem": "تركيب لافتة موافقة تمنح خيار الرفض الفوري المسبق."},
+            {"kw": ["نقل", "خارج", "خوادم", "cloud", "aws", "43"], "art": ["المادتان 43 و 44"], "ar": "المادة 43 تحظر نقل المعطيات خارج المغرب إلا بترخيص كتابي مسبق من CNDP، أو التوطين بمراكز بيانات سيادية وطنية.", "rem": "إيداع ترخيص النقل أو توطين البيانات داخل التراب الوطني."},
+            {"kw": ["تصريح", "وصل", "d-1", "dpo", "12"], "art": ["المادة 12", "الباب الثاني"], "ar": "كل معالجة تقتضي تصريحاً مسبقاً (استمارة D-1) لدى CNDP، ونشر رقم وصل الإيداع الرسمي في تذييل الموقع.", "rem": "إيداع استمارة التصريح ونشر رقم الوصل بالتذييل."},
+            {"kw": ["غرامة", "عقوبة", "حبس", "53", "58", "63"], "art": ["المواد 53 إلى 64"], "ar": "يقر القانون غرامات حتى 100,000 درهم لغياب التصريح (م 53)، و200,000 درهم وحبس حتى سنتين للإخلال بالأمن (م 58) أو النقل للخارج (م 63).", "rem": "التدقيق الدوري وتأمين البيانات وحيازة رخص CNDP."}
+        ],
+        "gdpr": [
+            {"kw": ["cookies", "banner", "consent", "eprivacy", "كوكيز"], "art": ["GDPR Art. 7", "ePrivacy Art. 5(3)"], "ar": "المادة 7 من GDPR: يلزم موافقة صريحة ومسبقة، وتمنع الصناديق المؤشر عليها سلفاً مع توفير زر رفض مساوٍ للقبول.", "rem": "Deploy certified CMP with prior zero-cookie enforcement."},
+            {"kw": ["transfer", "schrems", "scc", "third country", "نقل"], "art": ["GDPR Chapter V", "Schrems II"], "ar": "نقل المعطيات خارج المنطقة الأوروبية يستلزم قرار كفاية، أو بنود تعاقدية معيارية (SCCs) مع تقييم أثر النقل (TIA).", "rem": "Execute Standard Contractual Clauses (SCCs) and TIA."},
+            {"kw": ["fine", "penalties", "83", "غرامة"], "art": ["GDPR Art. 83"], "ar": "غرامات GDPR تصل إلى 20 مليون يورو أو 4% من إجمالي الإيرادات السنوية العالمية للانتهاكات الجسيمة.", "rem": "Maintain comprehensive ROPA records and privacy safeguards."}
+        ],
+        "ccpa": [
+            {"kw": ["sale", "share", "do not sell", "opt-out", "gpc", "بيع"], "art": ["Cal. Civ. Code § 1798.120", "§ 1798.135"], "ar": "يفرض CCPA/CPRA رابطاً صريحاً 'Do Not Sell/Share My Personal Info' ودعم إشارة GPC التلقائية لرفض التتبع.", "rem": "Add 'Do Not Sell/Share' link and honor GPC signals."},
+            {"kw": ["fine", "penalty", "cppa", "غرامة"], "art": ["Cal. Civ. Code § 1798.155"], "ar": "غرامات تصل لـ 2,500$ للمخالفة غير المقصودة و 7,500$ للمتعمدة، مع تعويضات 100$-750$ للمستهلك في التسريبات.", "rem": "Conduct annual cybersecurity audits and enforce data addendums."}
+        ]
+    }
 
     @classmethod
-    def query(cls, prompt: str, lang: str = "ar") -> dict:
+    def query(cls, prompt: str, framework: str = "cndp", lang: str = "ar") -> dict:
         norm = prompt.lower().strip()
-        matched = None
-        for item in cls.KNOWLEDGE_BASE:
-            for kw in item["keywords"]:
-                if kw in norm:
-                    matched = item
-                    break
-            if matched:
-                break
-        if not matched:
-            return {
-                "reply": (
-                    f"بناءً على مقتضيات القانون رقم 08.09 والظهير الشريف رقم 1.09.15: يجب أن تخضع كل عملية معالجة لمبادئ المشروعية والنزاهة والتصريح المسبق للجنة CNDP. استفساركم: '{prompt}' يقتضي مطابقة الغايات المحددة وتأمين التخزين السيادي."
-                    if lang == "ar" else
-                    f"Conformément à la loi 08-09 et dahir n° 1.09.15 : tout traitement requiert le respect de la finalité, sécurité et déclaration CNDP. Votre requête '{prompt}' requiert un examen spécifique."
-                ),
-                "articles": ["الظهير الشريف 1.09.15", "المادتان 3 و 12 من القانون 08.09"],
-                "remediation": "استكمال استمارة التصريح D-1 وتعيين مسؤول حماية المعطيات (DPO).",
-                "topic": "general_sovereign"
-            }
+        items = cls.KNOWLEDGE.get(framework, cls.KNOWLEDGE["cndp"])
+        for it in items:
+            for k in it["kw"]:
+                if k in norm:
+                    return {
+                        "reply": it["ar"],
+                        "articles": it["art"],
+                        "remediation": it["rem"]
+                    }
         return {
-            "reply": matched.get(f"answer_{lang}", matched["answer_ar"]),
-            "articles": matched["articles"],
-            "remediation": matched["remediation"],
-            "topic": matched["topic"]
+            "reply": f"وفقاً للضوابط التنظيمية لإطار {framework.upper()}: يجب استيفاء شروط الشفافية والتشفير وتوفير آليات سحب الموافقة بيسر.",
+            "articles": [f"{framework.upper()} Provisions"],
+            "remediation": "إجراء تدقيق شامل للسياسات وتحديث إشعار الخصوصية."
         }
 
 # ==============================================================================
-# 🔍 3. محرك التدقيق ومصفوفة الغرامات التنبؤية بالدرهم (Audit Core)
+# 🔍 3. محرك التدقيق التنظيمي ومصفوفة التوجيه العملي (Audit & Remediation Core)
 # ==============================================================================
-def audit_target(target_input):
+def audit_target(target_input, framework="cndp"):
     cleaned = target_input.strip()
     target_url = cleaned if cleaned.startswith(("http://", "https://")) else "https://" + cleaned
     domain = target_url.split("//")[-1].split("/")[0].replace("www.", "")
@@ -165,91 +125,98 @@ def audit_target(target_input):
     random.seed(domain_seed + int(time.time() // 86400))
 
     has_ssl = not target_url.startswith("http://")
-    has_cndp_mention = (domain_seed % 5 != 0)
-    has_privacy_policy = (domain_seed % 7 != 0)
-    has_cookie_banner = (domain_seed % 3 != 0)
+    has_policy = (domain_seed % 7 != 0)
+    has_banner = (domain_seed % 3 != 0)
     is_foreign_cloud = (domain_seed % 4 == 0) and not domain.endswith(".ma")
+    has_notice = (domain_seed % 5 != 0)
 
     score = 100
     potential_fines = 0
+    fines_currency = "MAD" if framework == "cndp" else ("EUR" if framework == "gdpr" else "USD")
     fines_items = []
-    gaps, warnings, passed = [], [], []
+    action_plan = []
 
-    if not has_cndp_mention:
-        score -= 25
-        potential_fines += 100000
-        fines_items.append({"article": "المادة 53", "violation": "انعدام التصريح المسبق لدى CNDP", "amount": "10,000 إلى 100,000 درهم"})
-        gaps.append({"title": "غياب مرجع التصريح المسبق (D-W)", "article": "المادتان 12 و 53", "desc": "لم يتم العثور على إشعار بتصريح CNDP القانوني.", "remediation": "إيداع استمارة D-1 ونشر رقم الوصل."})
-    else:
-        passed.append({"title": "توفر وصل تصريح قانوني لـ CNDP", "article": "المادة 12"})
+    if framework == "cndp":
+        if not has_notice:
+            score -= 25; potential_fines += 100000
+            fines_items.append({"article": "المادة 53", "violation": "انعدام التصريح المسبق لـ CNDP", "amount": "10,000 إلى 100,000 MAD"})
+            action_plan.append({"title": "استخراج وصل إيداع CNDP", "detail": "إيداع استمارة D-1 لدى اللجنة الوطنية ونشر رقم الوصل الرسمي في تذييل موقعك.", "action_type": "cndp_guide", "btn": "دليل إيداع D-1"})
+        if not has_ssl:
+            score -= 25; potential_fines += 200000
+            fines_items.append({"article": "المادة 58", "violation": "الإخلال بأمن وسرية المعطيات (غياب HTTPS)", "amount": "20,000 إلى 200,000 MAD"})
+            action_plan.append({"title": "تفعيل شهادة TLS والتشفير", "detail": "ترقية شهادة الأمان وفرض بروتوكول HTTPS مع HSTS لتأمين قنوات الاتصال.", "action_type": "security", "btn": "إرشادات التشفير"})
+        if not has_banner:
+            score -= 15
+            fines_items.append({"article": "مداولة 08-2020", "violation": "تتبع مسبق دون خيار رفض متكافئ", "amount": "إنذار وتوقيف المعالجة"})
+            action_plan.append({"title": "مواءمة لافتة الكوكيز (مداولة 08-2020)", "detail": "حظر أدوات التحليل والتتبع قبل النقر على زر القبول وتوفير زر 'رفض الكل' بصورة متكافئة.", "action_type": "cookie_code", "btn": "نسخ كود اللافتة المتوافقة"})
+        if is_foreign_cloud:
+            score -= 15; potential_fines += 200000
+            fines_items.append({"article": "المادة 63", "violation": "نقل المعطيات للخارج دون ترخيص رسمي", "amount": "20,000 إلى 200,000 MAD"})
+            action_plan.append({"title": "تسوية استضافة المعطيات والسيادة", "detail": "إيداع طلب ترخيص بنقل المعطيات خارج المغرب أو ترحيل قواعد البيانات إلى خوادم مغربية معتمدة.", "action_type": "cloud", "btn": "دليل ترخيص النقل"})
+        if not has_policy:
+            score -= 20; potential_fines += 50000
+            fines_items.append({"article": "المادة 55", "violation": "خرق حق الإخبار وحقوق الأفراد", "amount": "10,000 إلى 50,000 MAD"})
+            action_plan.append({"title": "نشر سياسة خصوصية متوافقة مع القانون 08-09", "detail": "صياغة صفحة سياسة حماية المعطيات وتحديد هوية المسؤول وقنوات ممارسة حقوق الولوج والتصحيح.", "action_type": "policy_gen", "btn": "توليد نص السياسة فورياً"})
+    elif framework == "gdpr":
+        if not has_ssl:
+            score -= 30; potential_fines += 10000000
+            fines_items.append({"article": "GDPR Art. 32", "violation": "Lack of state-of-the-art encryption", "amount": "Up to €10,000,000"})
+            action_plan.append({"title": "Enforce Technical & Organizational Measures", "detail": "Deploy TLS 1.3 encryption and data security controls under Article 32.", "action_type": "security", "btn": "Security Guidelines"})
+        if not has_banner:
+            score -= 25; potential_fines += 20000000
+            fines_items.append({"article": "GDPR Art. 7", "violation": "Unlawful cookies without explicit opt-in", "amount": "Up to €20,000,000"})
+            action_plan.append({"title": "GDPR & ePrivacy Consent Banner", "detail": "Implement prior opt-in consent CMP. Ban pre-ticked checkboxes and ensure equal rejection.", "action_type": "cookie_code", "btn": "Get Compliant CMP Code"})
+        if not has_policy:
+            score -= 20; potential_fines += 10000000
+            fines_items.append({"article": "GDPR Art. 13", "violation": "Deficient privacy notice & legal basis", "amount": "Up to €10,000,000"})
+            action_plan.append({"title": "Publish GDPR Transparency Notice", "detail": "Detail processing legal basis (Art. 6), DPO contact, retention periods, and DSAR procedures.", "action_type": "policy_gen", "btn": "Generate GDPR Policy"})
+    else:  # CCPA
+        if not has_banner:
+            score -= 30; potential_fines += 75000
+            fines_items.append({"article": "§ 1798.120", "violation": "Missing Do Not Sell/Share Opt-Out link", "amount": "$2,500 - $7,500 per breach"})
+            action_plan.append({"title": "Deploy 'Do Not Sell/Share' Footer Link", "detail": "Add a prominent opt-out mechanism and configure automated Global Privacy Control (GPC) support.", "action_type": "cookie_code", "btn": "Get Opt-Out Snippet"})
+        if not has_policy:
+            score -= 30; potential_fines += 75000
+            fines_items.append({"article": "§ 1798.100", "violation": "Missing CCPA Notice at Collection", "amount": "$2,500 - $7,500 per violation"})
+            action_plan.append({"title": "Publish Notice at Collection", "detail": "Disclose categories of personal info collected in the last 12 months and retention schedules.", "action_type": "policy_gen", "btn": "Generate CCPA Notice"})
 
-    if not has_ssl:
-        score -= 25
-        potential_fines += 200000
-        fines_items.append({"article": "المادة 58", "violation": "الإخلال بأمن وسرية المعطيات الرقمية", "amount": "20,000 إلى 200,000 درهم"})
-        gaps.append({"title": "انعدام التشفير الأمني (غياب HTTPS)", "article": "المادة 23", "desc": "الموقع يعتمد قنوات اتصال غير مشفرة.", "remediation": "تثبيت شهادة TLS 1.3 مع تفعيل HSTS."})
-    else:
-        passed.append({"title": "تشفير القنوات عبر TLS مشفر ونشط", "article": "المادة 23"})
-
-    if not has_cookie_banner:
-        score -= 15
-        warnings.append({"title": "إطلاق كوكيز التتبع قبل الموافقة الصريحة", "article": "مداولة 08-2020", "desc": "الموقع يزرع ملفات تتبع دون خيار رفض متكافئ.", "remediation": "تثبيت لافتة تتيح خيار الرفض الفوري."})
-    else:
-        passed.append({"title": "إدارة متوافقة لملفات الكوكيز وخيار الرفض", "article": "مداولة 08-2020"})
-
-    if is_foreign_cloud:
-        score -= 15
-        potential_fines += 200000
-        fines_items.append({"article": "المادة 63", "violation": "نقل المعطيات للخارج بدون ترخيص CNDP", "amount": "20,000 إلى 200,000 درهم"})
-        warnings.append({"title": "استضافة سحابية خارجية ونقل غير مرخص", "article": "المادتان 43 و 44", "desc": "الخوادم تقع خارج التراب الوطني بدون ترخيص.", "remediation": "إيداع ترخيص النقل أو التوطين داخل المغرب."})
-    else:
-        passed.append({"title": "توطين سيادي داخل التراب الوطني للمملكة", "article": "المادة 43"})
-
-    if not has_privacy_policy:
-        score -= 20
-        potential_fines += 50000
-        fines_items.append({"article": "المادة 55", "violation": "خرق حق الإخبار وحقوق الولوج والتصحيح", "amount": "10,000 إلى 50,000 درهم"})
-        gaps.append({"title": "انعدام سياسة معالجة المعطيات الشخصية", "article": "المادة 12", "desc": "غياب صفحة تبين هوية المسؤول والغايات.", "remediation": "نشر سياسة معتمدة وتخصيص بريد DPO."})
-    else:
-        passed.append({"title": "توفر سياسة خصوصية تحدد حقوق الولوج", "article": "المادة 12"})
+    if not action_plan:
+        action_plan.append({"title": "الموقع مستوفٍ لكافة المعايير الأساسية", "detail": "حافظ على وضعك المتميز عبر تفعيل رادار التنبيهات الدورية وتثبيت شارة الثقة الرقمية.", "action_type": "badge", "btn": "الحصول على شارة الثقة"})
 
     score = max(20, min(100, score))
-    status_label = "Conforme / ممتثل" if score >= 85 else ("Partiellement Conforme / ممتثل جزئياً" if score >= 60 else "Non-Conforme / غير ممتثل")
+    status_label = "Conforme / ممتثل" if score >= 85 else ("Partiellement Conforme" if score >= 60 else "Non-Conforme")
 
     try:
         conn = sqlite3.connect(DB_FILE)
         conn.cursor().execute('''
-            INSERT OR REPLACE INTO audit_history (id, target, domain, score, status, fines_mad, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        ''', (f"aud_{int(time.time())}", target_url, domain, score, status_label, potential_fines, datetime.now().strftime("%Y-%m-%d %H:%M")))
+            INSERT OR REPLACE INTO audit_history (id, target, domain, framework, score, status, fines_amount, fines_currency, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (f"aud_{int(time.time())}", target_url, domain, framework, score, status_label, potential_fines, fines_currency, datetime.now().strftime("%Y-%m-%d %H:%M")))
         conn.commit()
         conn.close()
     except Exception:
         pass
 
     return {
-        "target": target_url, "domain": domain, "score": score, "status": status_label,
-        "potential_fines_mad": potential_fines, "fines_items": fines_items,
-        "gaps": gaps, "warnings": warnings, "passed": passed,
-        "is_sovereign": not is_foreign_cloud, "has_ssl": has_ssl,
-        "date": datetime.now().strftime("%Y-%m-%d %H:%M")
+        "target": target_url, "domain": domain, "framework": framework, "score": score,
+        "status": status_label, "potential_fines": potential_fines, "fines_currency": fines_currency,
+        "fines_items": fines_items, "action_plan": action_plan, "is_sovereign": not is_foreign_cloud,
+        "has_ssl": has_ssl, "date": datetime.now().strftime("%Y-%m-%d %H:%M")
     }
 
 # ==============================================================================
-# 🎨 4. الواجهة الأمامية السيادية المتكاملة (Cyber UI / Tailwind / Canvas / i18n)
+# 🎨 4. الواجهة البرمجية الشاملة (Full Sovereign RegTech Template)
 # ==============================================================================
 HTML_TEMPLATE = """<!DOCTYPE html>
 <html lang="ar" dir="rtl" class="dark scroll-smooth">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Soverify - منصة السيادة الرقمية والامتثال للقانون المغربي 08.09</title>
+    <title>Soverify Global - المنصة العالمية للامتثال والسيادة الرقمية</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Alex+Brush&family=Tajawal:wght@400;500;700;800;900&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
     <script>
         tailwind.config = {
             darkMode: 'class',
@@ -257,52 +224,39 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 extend: {
                     colors: {
                         navy: { 950: '#030712', 900: '#070d18', 850: '#0c1526', 800: '#111d33', 700: '#1a2b4a' },
-                        emerald: { 400: '#34d399', 500: '#10b981', 600: '#059669', 950: '#022c22' },
+                        emerald: { 400: '#34d399', 500: '#10b981', 600: '#059669' },
                         sand: { 300: '#fde68a', gold: '#dfb15b' }
                     },
                     fontFamily: {
                         sans: ['Tajawal', 'sans-serif'],
                         mono: ['JetBrains Mono', 'monospace'],
                         signature: ['Alex Brush', 'cursive']
-                    },
-                    animation: {
-                        'float': 'float 4s ease-in-out infinite',
-                        'glow': 'glow 3s ease-in-out infinite alternate'
-                    },
-                    keyframes: {
-                        float: { '0%, 100%': { transform: 'translateY(0px)' }, '50%': { transform: 'translateY(-6px)' } },
-                        glow: { '0%': { opacity: '0.2' }, '100%': { opacity: '0.5' } }
                     }
                 }
             }
         }
     </script>
     <style>
-        body { background-color: #030712; color: #f3f4f6; font-family: 'Tajawal', sans-serif; overflow-x: hidden; }
+        body { background-color: #030712; color: #f3f4f6; font-family: 'Tajawal', sans-serif; }
         #cyber-canvas { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 0; opacity: 0.65; }
-        .glass-card { background: rgba(12, 21, 38, 0.85); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid rgba(16, 185, 129, 0.2); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4); transition: all 0.3s ease; }
-        .glass-card:hover { border-color: rgba(16, 185, 129, 0.45); transform: translateY(-2px); }
+        .glass-card { background: rgba(12, 21, 38, 0.85); backdrop-filter: blur(14px); border: 1px solid rgba(16, 185, 129, 0.2); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4); }
         .typewriter-cursor::after { content: '|'; color: #10b981; animation: blink 0.8s infinite; }
         @keyframes blink { 0%, 50% { opacity: 1; } 51%, 100% { opacity: 0; } }
-        .circular-chart { max-height: 210px; }
         .circle-bg { fill: none; stroke: #111d33; stroke-width: 3.4; }
         .circle-bar { fill: none; stroke-width: 3.4; stroke-linecap: round; stroke: url(#emerald-gold); transition: stroke-dasharray 1.4s ease; }
-        .zebra-row:nth-child(even) { background-color: rgba(7, 13, 24, 0.5); }
-        .zebra-row:nth-child(odd) { background-color: rgba(12, 21, 38, 0.4); }
-        .zebra-row:hover { background-color: rgba(16, 185, 129, 0.1); }
     </style>
 </head>
-<body class="min-h-screen flex flex-col selection:bg-emerald-500 selection:text-slate-950 relative">
+<body class="min-h-screen flex flex-col relative selection:bg-emerald-500 selection:text-slate-950">
 
     <canvas id="cyber-canvas"></canvas>
 
-    <!-- Top Sovereignty Bar -->
+    <!-- Top Sovereign Ribbon -->
     <div class="relative z-10 bg-navy-950 border-b border-emerald-500/25 px-4 py-2 text-xs">
         <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
             <div class="flex items-center gap-2 text-slate-300">
-                <span class="inline-block w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
-                <span class="font-bold text-white">المملكة المغربية — السيادة الرقمية:</span>
-                <span>مطابقة الظهير الشريف 1.09.15 والقانون 08.09 وقرارات CNDP</span>
+                <span class="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                <span class="font-bold text-white">السيادة الرقمية العالمية:</span>
+                <span>المغرب (القانون 08.09 CNDP) • الاتحاد الأوروبي (GDPR) • كاليفورنيا (CCPA/CPRA)</span>
             </div>
             <div class="flex items-center gap-3 font-mono text-[11px]">
                 <div class="flex items-center bg-navy-900 border border-slate-700 rounded-lg p-0.5">
@@ -310,63 +264,73 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                     <button onclick="setLang('fr')" id="btn-lang-fr" class="px-2.5 py-0.5 rounded text-slate-400 hover:text-white">Français</button>
                     <button onclick="setLang('en')" id="btn-lang-en" class="px-2.5 py-0.5 rounded text-slate-400 hover:text-white">English</button>
                 </div>
-                <span class="text-sand-gold font-bold"><i class="fa-solid fa-shield-halved"></i> PythonAnywhere Ready</span>
+                <span class="text-sand-gold font-bold"><i class="fa-solid fa-shield-halved"></i> Sovereign RegTech v5.0</span>
             </div>
         </div>
     </div>
 
-    <!-- Sticky Navbar -->
+    <!-- Header / Navbar -->
     <header class="sticky top-0 z-40 bg-navy-900/90 backdrop-blur-md border-b border-slate-800">
         <div class="max-w-7xl mx-auto px-4 h-20 flex items-center justify-between">
-            <a href="#hero" class="flex items-center gap-3 group">
-                <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-emerald-500/20 via-navy-800 to-sand-gold/20 border border-emerald-500/40 flex items-center justify-center text-2xl shadow group-hover:scale-105 transition">🇲🇦</div>
+            <a href="#hero" class="flex items-center gap-3">
+                <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-sand-gold/20 border border-emerald-500/40 flex items-center justify-center text-2xl shadow">🇲🇦</div>
                 <div>
                     <div class="flex items-center gap-1.5">
                         <span class="font-extrabold text-white text-xl">Soverify</span>
-                        <span class="text-[10px] font-mono px-2 py-0.5 bg-emerald-500/15 text-emerald-400 rounded-full border border-emerald-500/30">08.09</span>
+                        <span class="text-[10px] font-mono px-2 py-0.5 bg-emerald-500/15 text-emerald-400 rounded-full border border-emerald-500/30">Global</span>
                     </div>
-                    <p class="text-[11px] text-slate-400">السيادة الرقمية المغربية • CNDP Compliance</p>
+                    <p class="text-[11px] text-slate-400">السيادة الرقمية والامتثال متعدد التشريعات</p>
                 </div>
             </a>
 
             <nav class="hidden md:flex items-center gap-1 bg-navy-850 p-1 rounded-2xl border border-slate-800 text-xs font-semibold">
-                <a href="#hero" class="px-3.5 py-2 rounded-xl text-slate-300 hover:text-white transition"><i class="fa-solid fa-house text-emerald-400 ml-1"></i> الرئيسية</a>
-                <a href="#dashboard" class="px-3.5 py-2 rounded-xl text-slate-300 hover:text-white transition"><i class="fa-solid fa-chart-line text-emerald-400 ml-1"></i> الامتثال</a>
-                <a href="#strategic-hub" class="px-3.5 py-2 rounded-xl text-sand-gold hover:text-sand-300 transition"><i class="fa-solid fa-sparkles ml-1"></i> الأدوات 4★</a>
-                <a href="#ai-hub" class="px-3.5 py-2 rounded-xl text-slate-300 hover:text-white transition"><i class="fa-solid fa-robot text-emerald-400 ml-1"></i> مستشار DPO</a>
-                <a href="#footer" class="px-3.5 py-2 rounded-xl text-slate-300 hover:text-white transition"><i class="fa-solid fa-id-card text-emerald-400 ml-1"></i> المؤسس</a>
+                <a href="#hero" class="px-3 py-2 rounded-xl text-slate-300 hover:text-white"><i class="fa-solid fa-house text-emerald-400 ml-1"></i> الرئيسية</a>
+                <a href="#dashboard" class="px-3 py-2 rounded-xl text-slate-300 hover:text-white"><i class="fa-solid fa-chart-pie text-emerald-400 ml-1"></i> الامتثال</a>
+                <a href="#action-remediation-section" class="px-3 py-2 rounded-xl text-emerald-400 hover:text-emerald-300"><i class="fa-solid fa-wrench ml-1"></i> الإصلاح الفوري</a>
+                <a href="#viral-badge-section" class="px-3 py-2 rounded-xl text-sand-gold hover:text-sand-300"><i class="fa-solid fa-shield-check ml-1"></i> شارة الثقة 🛡️</a>
+                <a href="#founder-vision-section" class="px-3 py-2 rounded-xl text-slate-300 hover:text-white"><i class="fa-solid fa-quote-right text-sand-gold ml-1"></i> رؤية المؤسس</a>
             </nav>
 
             <div class="flex items-center gap-2">
-                <button onclick="exportCSV()" class="bg-navy-800 hover:bg-navy-700 text-slate-200 border border-slate-700 px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow">
-                    <i class="fa-solid fa-file-csv text-emerald-400"></i>
-                    <span class="hidden sm:inline">تصدير CSV</span>
+                <button onclick="exportCSV()" class="bg-navy-800 hover:bg-navy-700 text-slate-200 border border-slate-700 px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1">
+                    <i class="fa-solid fa-file-csv text-emerald-400"></i> <span class="hidden sm:inline">CSV</span>
                 </button>
-                <button onclick="exportPDF()" class="bg-gradient-to-r from-emerald-500 to-sand-gold hover:from-emerald-400 text-slate-950 font-extrabold px-4 py-2 rounded-xl text-xs transition flex items-center gap-1.5 shadow active:scale-95">
+                <button onclick="handlePDFClick()" id="btn-pdf-export" class="bg-gradient-to-r from-emerald-500 to-sand-gold text-slate-950 font-extrabold px-3.5 py-2 rounded-xl text-xs transition flex items-center gap-1.5 shadow">
                     <i class="fa-solid fa-file-pdf"></i>
-                    <span>تقرير PDF رسمي</span>
+                    <span id="txt-pdf-btn">تقرير PDF رسمي 🔓</span>
                 </button>
             </div>
         </div>
     </header>
 
-    <!-- Hero Section with Typewriter & Live Scanning -->
-    <section id="hero" class="relative z-10 pt-12 pb-14 text-center">
-        <div class="max-w-4xl mx-auto px-4 space-y-5">
-            <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-navy-800 border border-emerald-500/30 text-emerald-300 text-xs font-bold animate-float">
-                <span class="w-2 h-2 rounded-full bg-sand-gold animate-pulse"></span>
-                <span>المحرك السيادي لتدقيق الامتثال للقانون المغربي 08.09 ومداولات CNDP</span>
+    <!-- Hero Section -->
+    <section id="hero" class="relative z-10 pt-10 pb-12 text-center">
+        <div class="max-w-4xl mx-auto px-4 space-y-4">
+            <!-- Framework Selector Badges -->
+            <div class="inline-flex flex-wrap items-center justify-center gap-2 p-1.5 bg-navy-900 rounded-2xl border border-slate-700 max-w-xl mx-auto shadow">
+                <span class="text-xs text-slate-400 px-2 font-bold">الإطار التشريعي:</span>
+                <button onclick="switchFramework('cndp')" id="fw-cndp" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-500 text-slate-950 shadow">
+                    🇲🇦 المغرب (08-09 CNDP)
+                </button>
+                <button onclick="switchFramework('gdpr')" id="fw-gdpr" class="px-3 py-1.5 rounded-xl text-xs font-bold text-slate-300 hover:text-white">
+                    🇪🇺 الاتحاد الأوروبي (GDPR)
+                </button>
+                <button onclick="switchFramework('ccpa')" id="fw-ccpa" class="px-3 py-1.5 rounded-xl text-xs font-bold text-slate-300 hover:text-white">
+                    🇺🇸 كاليفورنيا (CCPA / CPRA)
+                </button>
             </div>
 
-            <div class="min-h-[100px] flex flex-col items-center justify-center">
+            <!-- Dynamic Typewriter -->
+            <div class="min-h-[90px] flex flex-col items-center justify-center">
                 <h1 id="typewriter-h1" class="text-3xl sm:text-5xl font-black text-white leading-tight typewriter-cursor"></h1>
-                <h2 id="typewriter-h2" class="text-sm sm:text-base text-slate-300 max-w-2xl mx-auto mt-2 opacity-0 transition-opacity duration-700"></h2>
+                <h2 id="typewriter-h2" class="text-xs sm:text-sm text-slate-300 max-w-2xl mx-auto mt-2 opacity-0 transition-opacity duration-700"></h2>
             </div>
 
+            <!-- Scan Input Form -->
             <form onsubmit="handleAudit(event)" class="glass-card p-3 rounded-2xl border border-emerald-500/30 flex flex-col sm:flex-row gap-2 max-w-2xl mx-auto shadow-2xl">
                 <div class="relative flex-1">
                     <span class="absolute right-4 top-3.5 text-emerald-400"><i class="fa-solid fa-globe"></i></span>
-                    <input type="text" id="target-input" value="banquepopulaire.ma" placeholder="أدخل نطاق موقعك (مثال: banquepopulaire.ma)" class="w-full bg-navy-950 border border-slate-700 rounded-xl pr-10 pl-4 py-3 text-sm text-white font-mono focus:outline-none focus:border-emerald-400" required>
+                    <input type="text" id="target-input" value="banquepopulaire.ma" placeholder="أدخل نطاق الموقع (مثال: banquepopulaire.ma)" class="w-full bg-navy-950 border border-slate-700 rounded-xl pr-10 pl-4 py-3 text-sm text-white font-mono focus:outline-none focus:border-emerald-400" required>
                 </div>
                 <button type="submit" id="btn-scan" class="bg-gradient-to-r from-emerald-500 to-sand-gold hover:from-emerald-400 text-slate-950 font-extrabold px-7 py-3 rounded-xl transition flex items-center justify-center gap-2 shadow active:scale-95">
                     <i class="fa-solid fa-shield-virus"></i>
@@ -374,67 +338,62 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 </button>
             </form>
 
-            <div class="flex items-center justify-center gap-2 text-xs text-slate-400">
-                <span>نطاقات للتجربة:</span>
-                <button onclick="setTarget('banquepopulaire.ma')" class="hover:text-emerald-400 font-mono underline">banquepopulaire.ma</button> •
-                <button onclick="setTarget('e-commerce-maroc.ma')" class="hover:text-emerald-400 font-mono underline">e-commerce-maroc.ma</button> •
-                <button onclick="setTarget('sante-teleconsult.ma')" class="hover:text-emerald-400 font-mono underline">sante-teleconsult.ma</button>
+            <div class="flex items-center justify-center gap-2 text-xs text-slate-400 font-mono">
+                <span>نطاقات مقترحة:</span>
+                <button onclick="setTarget('banquepopulaire.ma')" class="hover:text-emerald-400 underline">banquepopulaire.ma</button> •
+                <button onclick="setTarget('lemonde.fr')" class="hover:text-emerald-400 underline">lemonde.fr</button> •
+                <button onclick="setTarget('california-tech.com')" class="hover:text-emerald-400 underline">california-tech.com</button>
             </div>
         </div>
     </section>
 
-    <!-- Dashboard & 88% Circular Meter Section -->
-    <section id="dashboard" class="relative z-10 max-w-7xl mx-auto px-4 py-8 space-y-8">
-        <div class="flex items-center justify-between border-b border-slate-800 pb-4">
+    <!-- Dashboard & Circular Meter Section -->
+    <section id="dashboard" class="relative z-10 max-w-7xl mx-auto px-4 py-6 space-y-6">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-3">
             <div>
-                <span class="text-xs font-mono text-emerald-400 font-bold">لوحة القيادة السيادية • Sovereign Dashboard</span>
-                <h2 class="text-2xl sm:text-3xl font-black text-white">تحليل الامتثال ومصفوفة الغرامات التنبؤية (MAD)</h2>
+                <span class="text-xs font-mono text-emerald-400 font-bold">لوحة القيادة والمطابقة • Sovereign Compliance</span>
+                <h2 class="text-2xl font-black text-white">نتائج التدقيق ومصفوفة العقوبات</h2>
             </div>
-            <button onclick="exportPDF()" class="text-xs bg-navy-850 hover:bg-navy-800 text-sand-gold border border-sand-gold/30 px-3.5 py-2 rounded-xl flex items-center gap-1.5 transition">
-                <i class="fa-solid fa-file-arrow-down"></i> <span>تحميل التقرير الرسمي</span>
+            <button onclick="handlePDFClick()" class="text-xs bg-navy-850 hover:bg-navy-800 text-sand-gold border border-sand-gold/30 px-3 py-2 rounded-xl flex items-center gap-1.5">
+                <i class="fa-solid fa-share-nodes"></i> <span>مشاركة لفك قفل التقرير</span>
             </button>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div class="glass-card p-5 rounded-2xl space-y-2">
-                <div class="flex items-center justify-between"><span class="text-xs font-mono text-slate-400">المادة 12</span><i class="fa-solid fa-stamp text-emerald-400 text-lg"></i></div>
-                <h3 class="text-xs font-bold text-slate-300">التصريح المسبق لـ CNDP</h3>
-                <div id="metric-cndp" class="text-lg font-extrabold text-white">وصل الإيداع D-1</div>
-                <p class="text-[11px] text-slate-400">إشعار رسمي بقانونية المعالجة.</p>
+            <div class="glass-card p-4 rounded-2xl space-y-1">
+                <div class="flex items-center justify-between text-xs text-slate-400"><span>الإشعار الرسمي</span><i class="fa-solid fa-stamp text-emerald-400"></i></div>
+                <div id="metric-cndp" class="text-base font-extrabold text-white">وصل الإيداع D-1</div>
+                <p class="text-[11px] text-slate-400">المطابقة الإجرائية.</p>
             </div>
-            <div class="glass-card p-5 rounded-2xl space-y-2">
-                <div class="flex items-center justify-between"><span class="text-xs font-mono text-slate-400">مداولة 08-2020</span><i class="fa-solid fa-cookie-bite text-sand-gold text-lg"></i></div>
-                <h3 class="text-xs font-bold text-slate-300">ضوابط الكوكيز والتتبع</h3>
-                <div id="metric-cookies" class="text-lg font-extrabold text-white">الموافقة الصريحة</div>
-                <p class="text-[11px] text-slate-400">حظر التتبع قبل زر القبول.</p>
+            <div class="glass-card p-4 rounded-2xl space-y-1">
+                <div class="flex items-center justify-between text-xs text-slate-400"><span>ضوابط التتبع</span><i class="fa-solid fa-cookie-bite text-sand-gold"></i></div>
+                <div id="metric-cookies" class="text-base font-extrabold text-white">الموافقة الصريحة</div>
+                <p class="text-[11px] text-slate-400">حظر التتبع المسبق.</p>
             </div>
-            <div class="glass-card p-5 rounded-2xl space-y-2">
-                <div class="flex items-center justify-between"><span class="text-xs font-mono text-slate-400">المادتان 43 و 44</span><i class="fa-solid fa-server text-emerald-400 text-lg"></i></div>
-                <h3 class="text-xs font-bold text-slate-300">السيادة والتوطين</h3>
-                <div id="metric-sovereign" class="text-lg font-extrabold text-white">خوادم داخل المملكة</div>
-                <p class="text-[11px] text-slate-400">حظر النقل للخارج دون ترخيص.</p>
+            <div class="glass-card p-4 rounded-2xl space-y-1">
+                <div class="flex items-center justify-between text-xs text-slate-400"><span>الحدود الجغرافية</span><i class="fa-solid fa-server text-emerald-400"></i></div>
+                <div id="metric-sovereign" class="text-base font-extrabold text-white">توطين سيادي</div>
+                <p class="text-[11px] text-slate-400">حظر النقل دون ترخيص.</p>
             </div>
-            <div class="glass-card p-5 rounded-2xl space-y-2">
-                <div class="flex items-center justify-between"><span class="text-xs font-mono text-rose-400">المواد 53 إلى 64</span><i class="fa-solid fa-gavel text-rose-400 text-lg"></i></div>
-                <h3 class="text-xs font-bold text-slate-300">الغرامات التنبؤية بالدرهم</h3>
-                <div id="metric-fines" class="text-lg font-extrabold text-rose-400 font-mono">0 MAD</div>
-                <p class="text-[11px] text-slate-400">العقوبات المالية المحتملة.</p>
+            <div class="glass-card p-4 rounded-2xl space-y-1">
+                <div class="flex items-center justify-between text-xs text-rose-400"><span>العقوبات المالية</span><i class="fa-solid fa-gavel text-rose-400"></i></div>
+                <div id="metric-fines" class="text-base font-extrabold text-rose-400 font-mono">0 MAD</div>
+                <p class="text-[11px] text-slate-400">المخاطر التقديرية.</p>
             </div>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <!-- 88% Circular Meter -->
+            <!-- Circular Meter -->
             <div class="glass-card p-6 rounded-3xl flex flex-col items-center justify-center text-center">
-                <div class="w-full flex items-center justify-between border-b border-slate-800 pb-2 mb-4">
-                    <span class="text-xs font-mono text-emerald-400 font-bold">مؤشر الامتثال السيادي</span>
+                <div class="w-full flex items-center justify-between border-b border-slate-800 pb-2 mb-3">
+                    <span class="text-xs font-mono text-emerald-400 font-bold">مؤشر الامتثال</span>
                     <span id="meter-target" class="text-xs font-mono text-slate-400">banquepopulaire.ma</span>
                 </div>
-                <div class="relative w-48 h-48 flex items-center justify-center">
-                    <svg viewBox="0 0 36 36" class="circular-chart w-full h-full">
+                <div class="relative w-44 h-44 flex items-center justify-center">
+                    <svg viewBox="0 0 36 36" class="w-full h-full">
                         <defs>
                             <linearGradient id="emerald-gold" x1="0%" y1="0%" x2="100%" y2="100%">
-                                <stop offset="0%" stop-color="#10b981" />
-                                <stop offset="100%" stop-color="#dfb15b" />
+                                <stop offset="0%" stop-color="#10b981" /><stop offset="100%" stop-color="#dfb15b" />
                             </linearGradient>
                         </defs>
                         <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
@@ -442,289 +401,300 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                     </svg>
                     <div class="absolute inset-0 flex flex-col items-center justify-center">
                         <span id="meter-score" class="text-4xl font-black font-mono text-white">88%</span>
-                        <span id="meter-status" class="text-xs font-bold text-emerald-400 mt-1">Conforme / ممتثل</span>
+                        <span id="meter-status" class="text-xs font-bold text-emerald-400 mt-1">Conforme</span>
                     </div>
                 </div>
-                <p class="text-xs text-slate-400 mt-4">درجة التوافق الشاملة مع الظهير الشريف 1.09.15 وتراخيص CNDP.</p>
             </div>
 
-            <!-- Fines Breakdown Table -->
-            <div class="lg:col-span-2 glass-card p-6 rounded-3xl space-y-4">
-                <div class="flex items-center justify-between border-b border-slate-800 pb-3">
-                    <h3 class="text-sm font-bold text-white flex items-center gap-2">
-                        <i class="fa-solid fa-scale-balanced text-sand-gold"></i>
-                        <span>مصفوفة الغرامات التنبؤية وطرق التسوية (القانون 08-09)</span>
-                    </h3>
-                    <span class="text-xs text-sand-gold font-mono">Moroccan Penal Code</span>
-                </div>
+            <!-- Fines Table -->
+            <div class="lg:col-span-2 glass-card p-6 rounded-3xl space-y-3">
+                <h3 class="text-sm font-bold text-white flex items-center gap-2 border-b border-slate-800 pb-2">
+                    <i class="fa-solid fa-scale-balanced text-sand-gold"></i>
+                    <span>مصفوفة الغرامات التنبؤية والتسوية</span>
+                </h3>
                 <div class="overflow-x-auto">
                     <table class="w-full text-right text-xs">
                         <thead>
                             <tr class="border-b border-slate-700 text-slate-400 font-mono">
-                                <th class="p-2.5">المادة</th>
-                                <th class="p-2.5">المخالفة</th>
-                                <th class="p-2.5">الغرامة (MAD)</th>
-                                <th class="p-2.5">التسوية الفورية</th>
+                                <th class="p-2">المادة</th><th class="p-2">المخالفة</th><th class="p-2">الغرامة المقدرة</th><th class="p-2">التسوية</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-slate-800/60" id="fines-table-body">
-                            <tr class="zebra-row">
-                                <td class="p-2.5 font-mono text-emerald-400 font-bold">المادة 53</td>
-                                <td class="p-2.5 text-slate-200">عدم إشعار CNDP أو غياب التصريح المسبق</td>
-                                <td class="p-2.5 font-mono text-rose-400 font-bold">10,000 إلى 100,000 درهم</td>
-                                <td class="p-2.5 text-slate-300">إيداع استمارة D-1 ونشر رقم الوصل</td>
-                            </tr>
-                            <tr class="zebra-row">
-                                <td class="p-2.5 font-mono text-emerald-400 font-bold">المادة 58</td>
-                                <td class="p-2.5 text-slate-200">الإخلال بأمن المعطيات وإهمال التشفير</td>
-                                <td class="p-2.5 font-mono text-rose-400 font-bold">20,000 إلى 200,000 درهم</td>
-                                <td class="p-2.5 text-slate-300">تفعيل TLS 1.3 بشهادة معتمدة</td>
-                            </tr>
-                            <tr class="zebra-row">
-                                <td class="p-2.5 font-mono text-emerald-400 font-bold">المادة 63</td>
-                                <td class="p-2.5 text-slate-200">نقل المعطيات للخارج بدون ترخيص رسمي</td>
-                                <td class="p-2.5 font-mono text-rose-400 font-bold">20,000 إلى 200,000 درهم</td>
-                                <td class="p-2.5 text-slate-300">طلب ترخيص النقل أو التوطين بالمغرب</td>
-                            </tr>
-                            <tr class="zebra-row">
-                                <td class="p-2.5 font-mono text-emerald-400 font-bold">المادة 55</td>
-                                <td class="p-2.5 text-slate-200">حرمان الأفراد من حقوق الولوج والتصحيح</td>
-                                <td class="p-2.5 font-mono text-rose-400 font-bold">10,000 إلى 50,000 درهم</td>
-                                <td class="p-2.5 text-slate-300">نشر سياسة خصوصية وتعيين بريد DPO</td>
-                            </tr>
-                        </tbody>
+                        <tbody class="divide-y divide-slate-800/60" id="fines-table-body"></tbody>
                     </table>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- SECTION: THE 4 STRATEGIC SOVEREIGN TOOLS -->
-    <section id="strategic-hub" class="relative z-10 max-w-7xl mx-auto px-4 py-8 space-y-6">
-        <div class="text-center max-w-2xl mx-auto space-y-1">
-            <span class="px-3 py-1 rounded-full bg-sand-gold/15 text-sand-gold text-xs font-mono font-bold">Strategic Sovereign Tools</span>
-            <h2 class="text-2xl sm:text-3xl font-black text-white">الأدوات السيادية الأربع المتقدمة (Soverify 4★)</h2>
-            <p class="text-xs text-slate-300">حلول متكاملة مبنية بالكامل في بايثون للامتثال المؤسسي وإثبات الشفافية.</p>
-        </div>
-
-        <div class="flex flex-wrap items-center justify-center gap-2 p-1.5 bg-navy-900 rounded-2xl border border-slate-800 max-w-3xl mx-auto shadow">
-            <button onclick="switchStratTab('consent')" id="st-btn-consent" class="flex-1 min-w-[140px] px-3 py-2.5 rounded-xl text-xs font-bold transition bg-emerald-500/25 text-emerald-300 border border-emerald-500/40">
-                <i class="fa-solid fa-table-list ml-1"></i> 1. سجل الموافقة (SQLite)
-            </button>
-            <button onclick="switchStratTab('dpia')" id="st-btn-dpia" class="flex-1 min-w-[140px] px-3 py-2.5 rounded-xl text-xs font-bold transition text-slate-400 hover:text-white">
-                <i class="fa-solid fa-calculator ml-1"></i> 2. حاسبة تقييم الأثر (DPIA)
-            </button>
-            <button onclick="switchStratTab('cookie-audit')" id="st-btn-cookie-audit" class="flex-1 min-w-[140px] px-3 py-2.5 rounded-xl text-xs font-bold transition text-slate-400 hover:text-white">
-                <i class="fa-solid fa-cookie ml-1"></i> 3. مدقق الكوكيز (08-2020)
-            </button>
-            <button onclick="switchStratTab('i18n-guide')" id="st-btn-i18n-guide" class="flex-1 min-w-[140px] px-3 py-2.5 rounded-xl text-xs font-bold transition text-slate-400 hover:text-white">
-                <i class="fa-solid fa-language ml-1"></i> 4. اللغات ومولد السياسات
-            </button>
-        </div>
-
-        <div class="glass-card p-6 rounded-3xl border border-slate-800">
-            <!-- 1. Consent Log Tracker -->
-            <div id="st-panel-consent" class="space-y-4">
-                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-3">
-                    <div>
-                        <h3 class="text-sm font-bold text-white flex items-center gap-2">
-                            <i class="fa-solid fa-database text-emerald-400"></i>
-                            <span>سجل إثبات الموافقة القانونية (Consent Log Tracker - SQLite)</span>
-                        </h3>
-                        <p class="text-xs text-slate-400">توثيق وحفظ أدلة موافقة زوار الموقع التزاماً بمبادئ إثبات الشفافية في القانون 08-09.</p>
+    <!-- NEW FEATURE 2: ACTIONABLE NEXT STEPS ENGINE (محرك التوجيه العملي الفوري) -->
+    <section id="action-remediation-section" class="relative z-10 max-w-7xl mx-auto px-4 py-4 space-y-4">
+        <div class="glass-card p-6 rounded-3xl border border-emerald-500/40 space-y-4">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xl">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i>
                     </div>
-                    <form onsubmit="recordConsent(event)" class="flex gap-2 text-xs">
-                        <input type="text" id="cs-user" placeholder="معرف المستخدم" value="user_rabat_auto" class="bg-navy-950 border border-slate-700 px-3 py-1.5 rounded-lg text-white">
-                        <button type="submit" class="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-3 py-1.5 rounded-lg transition shrink-0">+ تسجيل موافقة</button>
-                    </form>
+                    <div>
+                        <h3 class="text-base font-black text-white">محرك التوجيه العملي والإصلاح الفوري (Actionable Remediation Roadmap)</h3>
+                        <p class="text-xs text-slate-400">حلول برمجية وتنظيمية فورية بنقرة واحدة لتحويل المخالفات إلى امتثال معتمد بنسبة 100%.</p>
+                    </div>
                 </div>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-right text-xs">
-                        <thead>
-                            <tr class="border-b border-slate-700 text-slate-400 font-mono">
-                                <th class="p-2.5">المعرف</th><th class="p-2.5">النطاق</th><th class="p-2.5">نوع الموافقة</th><th class="p-2.5">الأغراض</th><th class="p-2.5">بصمة التشفير</th><th class="p-2.5">التوقيت</th><th class="p-2.5">مطابقة CNDP</th>
-                            </tr>
-                        </thead>
-                        <tbody id="consent-table-body" class="divide-y divide-slate-800/60 font-mono"></tbody>
-                    </table>
-                </div>
+                <span class="text-xs font-mono text-sand-gold bg-sand-gold/10 px-3 py-1 rounded-full border border-sand-gold/20 self-start sm:self-auto">
+                    حلول فورية معتمدة
+                </span>
             </div>
 
-            <!-- 2. DPIA Calculator -->
-            <div id="st-panel-dpia" class="hidden space-y-4">
-                <div class="border-b border-slate-800 pb-3">
-                    <h3 class="text-sm font-bold text-white flex items-center gap-2"><i class="fa-solid fa-calculator text-sand-gold"></i><span>حاسبة تقييم الأثر على حماية المعطيات (DPIA Risk Calculator)</span></h3>
-                    <p class="text-xs text-slate-400">حدد هل مؤسستك ملزمة قانونياً بإنجاز تقرير DPIA وطلب ترخيص رسمي قبل الشروع بالمعالجة.</p>
-                </div>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
-                    <div>
-                        <label class="font-bold text-slate-300">طبيعة المعطيات الشخصية:</label>
-                        <select id="dpia-datatype" class="w-full mt-1 bg-navy-950 border border-slate-700 rounded-xl p-3 text-white">
-                            <option value="standard">معطيات عادية (الاسم، الهاتف، البريد)</option>
-                            <option value="financial">معطيات مالية أو بنكية</option>
-                            <option value="sensitive">معطيات صحية، بيومترية، أو قضائية (حساسة جداً)</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="font-bold text-slate-300">حجم المعالجة وعدد الأفراد:</label>
-                        <select id="dpia-volume" class="w-full mt-1 bg-navy-950 border border-slate-700 rounded-xl p-3 text-white">
-                            <option value="low">أقل من 1,000 شخص (محدود)</option>
-                            <option value="medium">1,000 إلى 50,000 شخص (متوسط)</option>
-                            <option value="high">أكثر من 50,000 شخص (معالجة واسعة النطاق)</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="font-bold text-slate-300">موقع الخوادم والاستضافة:</label>
-                        <select id="dpia-hosting" class="w-full mt-1 bg-navy-950 border border-slate-700 rounded-xl p-3 text-white">
-                            <option value="local">مراكز بيانات سيادية داخل المغرب 🇲🇦</option>
-                            <option value="foreign">سحابة أجنبية خارجية (AWS / GCP / Azure)</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="flex justify-end">
-                    <button onclick="calculateDPIA()" class="bg-gradient-to-r from-emerald-500 to-sand-gold text-slate-950 font-bold px-6 py-2.5 rounded-xl text-xs transition">حساب مؤشر المخاطر القانونية</button>
-                </div>
-                <div id="dpia-result" class="p-4 rounded-2xl bg-navy-950 border border-slate-700 text-xs hidden"></div>
+            <!-- Dynamic Action Cards Container -->
+            <div id="action-plan-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <!-- Injected dynamically based on audit results -->
             </div>
+        </div>
+    </section>
 
-            <!-- 3. Cookie Deliberation 08-2020 Simulator -->
-            <div id="st-panel-cookie-audit" class="hidden space-y-4">
-                <div class="border-b border-slate-800 pb-3">
-                    <h3 class="text-sm font-bold text-white flex items-center gap-2"><i class="fa-solid fa-cookie text-sand-gold"></i><span>مدقق الكوكيز ومحاكي اللافتة السيادية (CNDP 08-2020)</span></h3>
-                    <p class="text-xs text-slate-400">اختبر التوافق مع شروط المداولة: التكافؤ بين زر القبول والرفض وحظر التتبع المسبق.</p>
+    <!-- NEW FEATURE 1: THE FOUNDER'S VISION (رسالة وفلسفة المؤسس) -->
+    <section id="founder-vision-section" class="relative z-10 max-w-5xl mx-auto px-4 py-8">
+        <div class="glass-card p-8 sm:p-10 rounded-3xl border border-sand-gold/35 relative overflow-hidden shadow-2xl">
+            <div class="absolute -top-12 -left-12 w-48 h-48 bg-sand-gold/10 rounded-full blur-3xl pointer-events-none"></div>
+            <div class="absolute -bottom-12 -right-12 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+            <div class="relative z-10 space-y-6">
+                <div class="flex items-center gap-3 border-b border-slate-800 pb-4">
+                    <span class="text-2xl text-sand-gold"><i class="fa-solid fa-quote-right"></i></span>
+                    <div>
+                        <span class="text-xs font-mono text-sand-gold font-bold uppercase tracking-wider">The Founder's Vision • فلسفة المنصة</span>
+                        <h2 class="text-2xl font-black text-white">لماذا أنشأنا Soverify؟</h2>
+                    </div>
                 </div>
-                <div class="p-5 rounded-2xl bg-navy-950 border border-emerald-500/30 space-y-3">
-                    <span class="text-xs font-bold text-emerald-400">معاينة حية للافتة المتوافقة مع مداولة CNDP:</span>
-                    <div class="p-4 rounded-xl bg-navy-900 border border-slate-700 flex flex-col md:flex-row items-center justify-between gap-3 text-xs">
-                        <p class="text-slate-300">نحن نحترم خصوصيتك طبقاً للقانون 08-09. هل توافق على استخدام ملفات تعريف الارتباط للتحليلات الإحصائية؟</p>
-                        <div class="flex items-center gap-2 shrink-0">
-                            <button onclick="simulateConsent('رفض الكل')" class="px-3.5 py-1.5 rounded-lg bg-navy-800 hover:bg-navy-700 text-rose-400 border border-rose-500/30 font-bold">رفض الكل (Refuser tout)</button>
-                            <button onclick="simulateConsent('تخصيص')" class="px-3.5 py-1.5 rounded-lg bg-navy-800 hover:bg-navy-700 text-slate-300 border border-slate-700">تخصيص</button>
-                            <button onclick="simulateConsent('قبول الكل')" class="px-3.5 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold">قبول الكل (Accepter tout)</button>
+
+                <div class="text-slate-300 text-sm sm:text-base leading-relaxed space-y-4 font-normal">
+                    <p>
+                        في عصر تتسارع فيه التحولات الرقمية وتتعاظم فيه قيمة البيانات كأثمن مورد سيادي، لم يعد الامتثال القانوني مجرد إجراء شكلي روتيني أو عبء تنظيمي تخشى الشركات غراماته المالية، بل غدا <strong class="text-white font-bold">الحصن الحقيقي الذي يبني ثقة العملاء ويصون السيادة الرقمية للأوطان</strong>.
+                    </p>
+                    <p>
+                        أنشأنا <span class="font-bold text-emerald-400">Soverify</span> لسد تلك الفجوة المزمنة بين التعقيد القانوني الجاف والتطبيق البرمجي الفعلي على أرض الواقع؛ لنمنح كل مقاولة، رائد أعمال، ومطور تقني في المملكة المغربية والعالم أداة ذكية، شفافة، وفعالة تحول المتطلبات التنظيمية الصعبة (من القانون المغربي 08.09 وقرارات CNDP إلى اللائحة الأوروبية العامة GDPR وقانون كاليفورنيا CCPA) إلى <strong class="text-sand-gold font-bold">خطوات إصلاح عملية يسيرة وشارات ثقة رقمية تثبت المصداقية</strong>.
+                    </p>
+                    <p class="text-slate-400 text-xs sm:text-sm italic">
+                        "السيادة الرقمية ليست عائقاً أمام الابتكار التكنولوجي، بل هي الأساس الأخلاقي والاستراتيجي لنموه المستدام."
+                    </p>
+                </div>
+
+                <div class="pt-4 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500/20 via-navy-900 to-sand-gold/20 border border-sand-gold/40 flex items-center justify-center text-xl shadow">
+                            🇲🇦
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-lg font-bold text-white">طه ستري</span>
+                                <span class="text-xs text-slate-400 font-mono font-medium">(Taha Setri)</span>
+                            </div>
+                            <span class="text-xs text-emerald-400 font-mono block">مؤسس المنصة ورئيس تطوير السيادة الرقمية • VerifyOS™</span>
                         </div>
                     </div>
-                    <p id="cookie-sim-status" class="text-xs font-mono text-slate-400 text-center"></p>
-                </div>
-            </div>
 
-            <!-- 4. Language Switcher & Policy Generator -->
-            <div id="st-panel-i18n-guide" class="hidden space-y-4">
-                <div class="border-b border-slate-800 pb-3">
-                    <h3 class="text-sm font-bold text-white flex items-center gap-2"><i class="fa-solid fa-file-contract text-emerald-400"></i><span>مولد إشعار الخصوصية السيادي الثلاثي (العربية • الفرنسية • الإنجليزية)</span></h3>
-                    <p class="text-xs text-slate-400">توليد نص إشعار قانوني معتمد وجاهز للنشر في موقعك باللغة المطلوبة.</p>
+                    <div class="text-right">
+                        <span class="font-signature text-3xl sm:text-4xl text-sand-gold tracking-wide">Taha Setri</span>
+                    </div>
                 </div>
-                <div class="flex gap-2 text-xs">
-                    <button onclick="generatePolicyText('ar')" class="px-3 py-1.5 rounded-lg bg-navy-800 text-emerald-400 border border-slate-700 font-bold">النص بالعربية</button>
-                    <button onclick="generatePolicyText('fr')" class="px-3 py-1.5 rounded-lg bg-navy-800 text-slate-300 border border-slate-700">Texte en Français</button>
-                    <button onclick="generatePolicyText('en')" class="px-3 py-1.5 rounded-lg bg-navy-800 text-slate-300 border border-slate-700">English Notice</button>
-                </div>
-                <textarea id="policy-generated-box" readonly class="w-full h-32 bg-navy-950 border border-slate-700 rounded-xl p-3 text-xs font-mono text-slate-200 resize-none"></textarea>
             </div>
         </div>
     </section>
 
-    <!-- AI DPO Legal Advisor Hub (Real AJAX Interactive Chat) -->
-    <section id="ai-hub" class="relative z-10 max-w-4xl mx-auto px-4 py-8 space-y-6">
+    <!-- EMBEDDABLE TRUST BADGE WIDGET -->
+    <section id="viral-badge-section" class="relative z-10 max-w-7xl mx-auto px-4 py-6 space-y-4">
+        <div class="glass-card p-6 rounded-3xl border border-sand-gold/30 space-y-4">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-800 pb-3">
+                <div>
+                    <span class="px-2.5 py-0.5 rounded-full bg-sand-gold/15 text-sand-gold text-[10px] font-mono font-bold">Embeddable Trust Badge</span>
+                    <h2 class="text-xl font-black text-white mt-1">احصل على شارة الثقة الرقمية لموقعك (Soverify Trust Badge)</h2>
+                    <p class="text-xs text-slate-400">انسخ الكود وضعه في تذييل موقعك لزيادة ثقة عملائك وإثبات امتثالك القانوني فورياً.</p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <span class="text-xs text-slate-400">المعاينة الحية:</span>
+                    <div id="badge-live-preview" class="p-2 bg-navy-950 rounded-xl border border-emerald-500/40 shadow flex items-center gap-2">
+                        <img id="badge-img" src="/api/badge?score=88&framework=cndp" alt="Soverify Compliant" class="h-7">
+                    </div>
+                </div>
+            </div>
+
+            <div class="space-y-2">
+                <div class="flex items-center justify-between text-xs">
+                    <span class="font-bold text-slate-300">كود التضمين (HTML Embed Code مع رابط خلفي موثوق):</span>
+                    <button onclick="copyBadgeCode()" id="btn-copy-badge" class="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-3 py-1 rounded-lg transition flex items-center gap-1 text-xs">
+                        <i class="fa-solid fa-copy"></i> <span>نسخ الكود</span>
+                    </button>
+                </div>
+                <textarea id="badge-code-box" readonly class="w-full h-20 bg-navy-950 border border-slate-700 rounded-xl p-3 text-xs font-mono text-emerald-400 resize-none"></textarea>
+            </div>
+        </div>
+    </section>
+
+    <!-- DATA BREACH ALERT RADAR (Leads Magnet) -->
+    <section id="breach-radar-section" class="relative z-10 max-w-7xl mx-auto px-4 py-4">
+        <div class="glass-card p-6 rounded-3xl border border-rose-500/30 space-y-4">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div class="space-y-1">
+                    <div class="flex items-center gap-2 text-rose-400">
+                        <i class="fa-solid fa-shield-virus text-lg animate-pulse"></i>
+                        <h3 class="text-base font-extrabold text-white">رادار الحراسة والتنبيه المبكر لتسريبات البيانات (Breach Radar Alert)</h3>
+                    </div>
+                    <p class="text-xs text-slate-300 max-w-2xl">اشترك بريدك ونطاقك لتلقي إشعارات حية فور رصد أي تسريب أو ثغرة تشريعية وفقاً لمساطر الإشعار خلال 72 ساعة المنصوص عليها في القانون 08-09 و GDPR.</p>
+                </div>
+
+                <form onsubmit="handleBreachSubscribe(event)" class="flex flex-col sm:flex-row gap-2 w-full md:w-auto shrink-0">
+                    <input type="email" id="sub-email" placeholder="بريدك المهني (name@company.com)" class="bg-navy-950 border border-slate-700 px-4 py-2.5 rounded-xl text-xs text-white focus:outline-none focus:border-rose-400 font-mono" required>
+                    <button type="submit" id="btn-sub-breach" class="bg-gradient-to-r from-rose-500 to-sand-gold text-slate-950 font-extrabold px-5 py-2.5 rounded-xl text-xs transition flex items-center justify-center gap-1.5 shadow active:scale-95">
+                        <i class="fa-solid fa-bell"></i> <span>تفعيل الحراسة المجانية</span>
+                    </button>
+                </form>
+            </div>
+            <div id="sub-result-msg" class="hidden text-xs p-3 rounded-xl bg-navy-950 border border-emerald-500/30 text-emerald-400"></div>
+        </div>
+    </section>
+
+    <!-- AI DPO Assistant -->
+    <section id="ai-hub" class="relative z-10 max-w-4xl mx-auto px-4 py-6 space-y-4">
         <div class="glass-card p-6 rounded-3xl border border-emerald-500/30 space-y-4 shadow-2xl">
             <div class="flex items-center justify-between border-b border-slate-800 pb-3">
                 <div class="flex items-center gap-3">
                     <div class="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xl"><i class="fa-solid fa-robot"></i></div>
                     <div>
-                        <h3 class="text-base font-extrabold text-white">المستشار القانوني الذكي (AI DPO Assistant)</h3>
-                        <p class="text-xs text-slate-400">استفسارات فورية حول نصوص القانون 08-09، الغرامات، ومساطر CNDP</p>
+                        <h3 class="text-base font-extrabold text-white">المستشار القانوني الذكي (Global AI DPO Assistant)</h3>
+                        <p class="text-xs text-slate-400">استفسارات فورية ومطابقة للنصوص القانونية (CNDP • GDPR • CCPA)</p>
                     </div>
                 </div>
-                <button onclick="clearChat()" class="text-xs text-slate-400 hover:text-rose-400 transition"><i class="fa-solid fa-trash-can ml-1"></i> مسح</button>
             </div>
 
-            <div id="chat-box" class="h-80 overflow-y-auto space-y-3 p-3 bg-navy-950 rounded-2xl border border-slate-800 text-xs">
-                <div class="p-3.5 rounded-2xl bg-navy-900 border border-slate-800 text-slate-200 leading-relaxed">
-                    <span class="font-bold text-emerald-400 block mb-1">مرحباً بك! أنا مستشارك الرقمي في القانون 08.09 🇲🇦:</span>
-                    يمكنك سؤالي عن شروط كوكيز التتبع، عقوبات عدم التصريح لـ CNDP، شروط نقل المعطيات للخارج، أو حقوق الولوج والتصحيح.
+            <div id="chat-box" class="h-64 overflow-y-auto space-y-3 p-3 bg-navy-950 rounded-2xl border border-slate-800 text-xs">
+                <div class="p-3.5 rounded-2xl bg-navy-900 border border-slate-800 text-slate-200">
+                    <span class="font-bold text-emerald-400 block mb-1">مرحباً بك في Soverify Global DPO 🇲🇦:</span>
+                    يمكنك سؤالي عن شروط الكوكيز، عقوبات عدم التصريح لـ CNDP، أو التزامات GDPR و CCPA.
                 </div>
-            </div>
-
-            <div class="flex flex-wrap gap-1.5 text-[11px]">
-                <span class="text-slate-400 py-1">أسئلة مقترحة:</span>
-                <button onclick="quickAsk('ما هي شروط كوكيز التتبع حسب مداولة 08-2020؟')" class="px-2.5 py-1 rounded-full bg-navy-850 hover:bg-navy-800 text-emerald-300 border border-emerald-500/20">شروط الكوكيز</button>
-                <button onclick="quickAsk('ما هي غرامة عدم إشعار CNDP أو غياب التصريح D-1؟')" class="px-2.5 py-1 rounded-full bg-navy-850 hover:bg-navy-800 text-sand-gold border border-sand-gold/20">غرامات عدم التصريح</button>
-                <button onclick="quickAsk('هل يجوز استضافة معطيات المغاربة على AWS أو خوادم أجنبية؟')" class="px-2.5 py-1 rounded-full bg-navy-850 hover:bg-navy-800 text-emerald-300 border border-emerald-500/20">الاستضافة الخارجية</button>
             </div>
 
             <form onsubmit="handleChatSubmit(event)" class="flex gap-2">
-                <input type="text" id="chat-input" placeholder="اكتب استفسارك القانوني هنا..." class="flex-1 bg-navy-950 border border-slate-700 rounded-xl px-4 py-3 text-xs text-white focus:outline-none focus:border-emerald-400" required>
-                <button type="submit" id="btn-chat-send" class="bg-gradient-to-r from-emerald-500 to-sand-gold hover:from-emerald-400 text-slate-950 font-bold px-6 py-3 rounded-xl text-xs transition flex items-center gap-1.5 shadow active:scale-95">
-                    <span>إرسال</span>
-                    <i class="fa-solid fa-paper-plane"></i>
-                </button>
+                <input type="text" id="chat-input" placeholder="اكتب استفسارك القانوني..." class="flex-1 bg-navy-950 border border-slate-700 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-emerald-400" required>
+                <button type="submit" class="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-5 py-2.5 rounded-xl text-xs transition">إرسال</button>
             </form>
         </div>
     </section>
 
     <!-- Footer with Founder Signature -->
-    <footer id="footer" class="relative z-10 mt-auto bg-navy-950 border-t border-slate-800/80 py-10 text-xs">
-        <div class="max-w-7xl mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-6 text-slate-400">
-            <div class="space-y-1 text-center md:text-right">
-                <div class="flex items-center justify-center md:justify-start gap-2">
-                    <span class="font-extrabold text-white text-base">Soverify</span>
-                    <span class="font-mono text-emerald-400 text-[10px] px-2 py-0.5 bg-emerald-500/10 rounded-full border border-emerald-500/20">CNDP Compliance 3.5</span>
-                </div>
-                <p>منصة السيادة الرقمية المغربية والامتثال للظهير الشريف 1.09.15 ومداولات اللجنة الوطنية CNDP.</p>
+    <footer id="footer" class="relative z-10 mt-auto bg-navy-950 border-t border-slate-800 py-8 text-xs">
+        <div class="max-w-7xl mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-4 text-slate-400">
+            <div>
+                <span class="font-extrabold text-white text-base">Soverify Global</span>
+                <p>منصة الامتثال والسيادة الرقمية العالمية ورصد الخروقات التشريعية.</p>
             </div>
-
-            <!-- Founder Signature -->
             <div class="flex flex-col items-center md:items-end space-y-1">
                 <span class="text-[11px] text-slate-400">مؤسس المنصة ورئيس تطوير السيادة الرقمية:</span>
                 <div class="flex items-center gap-2">
                     <span class="font-signature text-2xl text-sand-gold tracking-wide">Taha Setri</span>
                     <span class="text-white font-bold text-sm">(طه ستري)</span>
                 </div>
-                <span class="text-[10px] font-mono text-emerald-400">Architect of VerifyOS™ • Kingdom of Morocco</span>
+                <span class="text-[10px] font-mono text-emerald-400">Architect of VerifyOS™ • Sovereign RegTech</span>
             </div>
         </div>
     </footer>
 
-    <!-- Client-side Logic & Particle Mesh Engine -->
+    <!-- INTERACTIVE REMEDIATION MODAL -->
+    <div id="remediation-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="glass-card max-w-xl w-full p-6 rounded-3xl border border-emerald-500/40 space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                <h3 id="rem-modal-title" class="text-base font-bold text-white">حل الإشكال القانوني</h3>
+                <button onclick="closeRemediationModal()" class="text-slate-400 hover:text-white text-lg"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div id="rem-modal-body" class="text-xs text-slate-300 space-y-3 font-mono leading-relaxed">
+                <!-- Injected dynamically -->
+            </div>
+            <div class="flex justify-end pt-2">
+                <button onclick="copyRemediationSnippet()" id="btn-copy-rem" class="bg-emerald-500 text-slate-950 font-bold px-4 py-2 rounded-xl text-xs flex items-center gap-1.5 transition">
+                    <i class="fa-solid fa-copy"></i> <span>نسخ النص / الكود</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- VIRAL SHARE-TO-UNLOCK MODAL -->
+    <div id="share-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="glass-card max-w-md w-full p-6 rounded-3xl border border-sand-gold/40 space-y-4 text-center">
+            <div class="w-14 h-14 mx-auto rounded-2xl bg-sand-gold/15 text-sand-gold flex items-center justify-center text-3xl">
+                <i class="fa-solid fa-lock-open animate-bounce"></i>
+            </div>
+            <h3 class="text-lg font-black text-white">شارك الفحص لفك قفل تقرير الـ PDF الشامل مجاناً</h3>
+            <p class="text-xs text-slate-300 leading-relaxed">
+                لدعم السيادة الرقمية والامتثال المؤسسي، شارك نتيجتك على لينكد إن (LinkedIn) أو تويتر (X) لفك قفل وتنزيل التقرير الرسمي المعتمد فورياً.
+            </p>
+            <div class="space-y-2 pt-2">
+                <button onclick="triggerViralShare('linkedin')" class="w-full bg-[#0077b5] hover:bg-[#006396] text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 transition">
+                    <i class="fa-brands fa-linkedin"></i> <span>مشاركة على LinkedIn (فك القفل فورياً)</span>
+                </button>
+                <button onclick="triggerViralShare('twitter')" class="w-full bg-slate-800 hover:bg-slate-700 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 transition">
+                    <i class="fa-brands fa-x-twitter"></i> <span>مشاركة على X (Twitter)</span>
+                </button>
+                <button onclick="bypassUnlock()" class="text-xs text-slate-400 hover:text-emerald-400 underline pt-2 block">
+                    تخطي والمتابعة لتحميل التقرير مباشرة
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Client Script -->
     <script>
         let currentLang = 'ar';
+        let currentFramework = 'cndp';
+        let isPdfUnlocked = false;
+
         const i18n = {
             ar: {
-                h1: "السيادة الرقمية المغربية والامتثال للقانون 08.09",
-                h2: "فحص فوري للخوادم، مداولة الكوكيز 08-2020، ومصفوفة الغرامات التنبؤية بالدرهم",
+                cndp_h1: "السيادة الرقمية المغربية والامتثال للقانون 08.09",
+                cndp_h2: "فحص فوري للخوادم، مداولة الكوكيز 08-2020، ومصفوفة الغرامات التنبؤية بالدرهم (MAD)",
+                gdpr_h1: "الامتثال الأوروبي للبيانات وحماية الخصوصية (GDPR)",
+                gdpr_h2: "تدقيق المعالجة، نقل المعطيات الدولية، وغرامات المادة 83 التي تصل لـ 20 مليون يورو",
+                ccpa_h1: "قانون كاليفورنيا لخصوصية المستهلك (CCPA / CPRA)",
+                ccpa_h2: "آليات Do Not Sell/Share، إشعار الجمع، وحماية بيانات المستهلكين في السوق الأمريكي",
                 btnScan: "ابدأ التدقيق الفوري",
-                scanning: "جارِ التدقيق السيادي..."
+                scanning: "جارِ التدقيق التنظيمي..."
             },
             fr: {
-                h1: "Souveraineté Numérique Marocaine & Loi 08-09",
-                h2: "Audit instantané des serveurs, délibération cookies 08-2020 et matrice des amendes MAD",
+                cndp_h1: "Souveraineté Numérique Marocaine & Loi 08-09",
+                cndp_h2: "Audit instantané des serveurs, délibération 08-2020 et matrice des amendes (MAD)",
+                gdpr_h1: "Conformité Européenne RGPD (EU GDPR)",
+                gdpr_h2: "Audit des transferts internationaux, bannières cookies et sanctions de l'Art. 83 jusqu'à 20M€",
+                ccpa_h1: "Conformité Californie CCPA / CPRA",
+                ccpa_h2: "Mécanismes Do Not Sell/Share, Notice at Collection et droits des consommateurs US",
                 btnScan: "Lancer l'audit immédiat",
-                scanning: "Audit souverain en cours..."
+                scanning: "Audit réglementaire en cours..."
             },
             en: {
-                h1: "Moroccan Digital Sovereignty & Law 08-09",
-                h2: "Instant server auditing, CNDP cookie deliberation 08-2020 and predictive MAD penalties",
+                cndp_h1: "Moroccan Digital Sovereignty & Law 08-09",
+                cndp_h2: "Instant server sovereignty audit, CNDP 08-2020 deliberation, and MAD predictive penalties",
+                gdpr_h1: "European Union GDPR Compliance Platform",
+                gdpr_h2: "Auditing international data transfers, ePrivacy cookies, and Article 83 fines up to €20M",
+                ccpa_h1: "California Consumer Privacy Act (CCPA / CPRA)",
+                ccpa_h2: "Do Not Sell/Share mechanisms, Notice at Collection, and statutory consumer privacy rights",
                 btnScan: "Start Instant Audit",
                 scanning: "Auditing compliance..."
             }
         };
 
-        // Typewriter Effect
+        // Typewriter Engine
         let twIndex = 0;
-        let twText = i18n[currentLang].h1;
+        let twText = "";
         function runTypewriter() {
             const h1 = document.getElementById('typewriter-h1');
             const h2 = document.getElementById('typewriter-h2');
             h1.textContent = '';
             h2.style.opacity = '0';
             twIndex = 0;
-            twText = i18n[currentLang].h1;
-            h2.textContent = i18n[currentLang].h2;
+            twText = i18n[currentLang][`${currentFramework}_h1`] || i18n[currentLang]['cndp_h1'];
+            h2.textContent = i18n[currentLang][`${currentFramework}_h2`] || i18n[currentLang]['cndp_h2'];
 
             function typeChar() {
                 if (twIndex < twText.length) {
                     h1.textContent += twText.charAt(twIndex);
                     twIndex++;
-                    setTimeout(typeChar, 35);
+                    setTimeout(typeChar, 30);
                 } else {
                     h2.style.opacity = '1';
                 }
@@ -732,13 +702,22 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             typeChar();
         }
 
+        function switchFramework(fw) {
+            currentFramework = fw;
+            ['cndp', 'gdpr', 'ccpa'].forEach(f => {
+                const btn = document.getElementById(`fw-${f}`);
+                btn.className = (f === fw) ? "px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-500 text-slate-950 shadow" : "px-3 py-1.5 rounded-xl text-xs font-bold text-slate-300 hover:text-white";
+            });
+            updateBadgeCode();
+            runTypewriter();
+            handleAudit(new Event('submit'));
+        }
+
         function setLang(lang) {
             currentLang = lang;
             ['ar', 'fr', 'en'].forEach(l => {
                 const btn = document.getElementById(`btn-lang-${l}`);
-                if (btn) {
-                    btn.className = (l === lang) ? "px-2.5 py-0.5 rounded bg-emerald-500/25 text-emerald-300 font-bold" : "px-2.5 py-0.5 rounded text-slate-400 hover:text-white";
-                }
+                btn.className = (l === lang) ? "px-2.5 py-0.5 rounded bg-emerald-500/25 text-emerald-300 font-bold" : "px-2.5 py-0.5 rounded text-slate-400 hover:text-white";
             });
             document.documentElement.lang = lang;
             document.documentElement.dir = (lang === 'ar') ? 'rtl' : 'ltr';
@@ -746,8 +725,8 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             runTypewriter();
         }
 
-        function setTarget(domain) {
-            document.getElementById('target-input').value = domain;
+        function setTarget(d) {
+            document.getElementById('target-input').value = d;
             handleAudit(new Event('submit'));
         }
 
@@ -766,7 +745,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 const res = await fetch('/api/audit', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ target: target })
+                    body: JSON.stringify({ target: target, framework: currentFramework })
                 });
                 const data = await res.json();
 
@@ -775,30 +754,39 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 document.getElementById('meter-status').textContent = data.status;
                 document.getElementById('meter-bar').setAttribute('stroke-dasharray', `${data.score}, 100`);
 
-                document.getElementById('metric-cndp').textContent = (data.score >= 80) ? "وصل الإيداع D-1 متاح" : "غير مصرح لدى CNDP";
-                document.getElementById('metric-cookies').textContent = (data.score >= 70) ? "متوافق مع 08-2020" : "تتبع مسبق محظور";
-                document.getElementById('metric-sovereign').textContent = data.is_sovereign ? "توطين سيادي مغربي 🇲🇦" : "سحابة خارجية (المادة 43)";
-                document.getElementById('metric-fines').textContent = Number(data.potential_fines_mad).toLocaleString() + " MAD";
+                document.getElementById('metric-cndp').textContent = (data.score >= 80) ? "وصل الإيداع متاح" : "غير مصرح";
+                document.getElementById('metric-cookies').textContent = (data.score >= 70) ? "متوافق مع الضوابط" : "تتبع مسبق محظور";
+                document.getElementById('metric-sovereign').textContent = data.is_sovereign ? "توطين سيادي 🇲🇦" : "سحابة خارجية";
+                document.getElementById('metric-fines').textContent = Number(data.potential_fines).toLocaleString() + " " + data.fines_currency;
 
                 const tbody = document.getElementById('fines-table-body');
-                if (data.fines_items && data.fines_items.length > 0) {
-                    tbody.innerHTML = data.fines_items.map(f => `
-                        <tr class="zebra-row">
-                            <td class="p-2.5 font-mono text-emerald-400 font-bold">${f.article}</td>
-                            <td class="p-2.5 text-slate-200">${f.violation}</td>
-                            <td class="p-2.5 font-mono text-rose-400 font-bold">${f.amount}</td>
-                            <td class="p-2.5 text-slate-300">تسوية فورية معتمدة</td>
-                        </tr>
+                tbody.innerHTML = data.fines_items.map(f => `
+                    <tr>
+                        <td class="p-2 font-mono text-emerald-400 font-bold">${f.article}</td>
+                        <td class="p-2 text-slate-200">${f.violation}</td>
+                        <td class="p-2 font-mono text-rose-400 font-bold">${f.amount}</td>
+                        <td class="p-2 text-slate-300">تسوية فورية معتمدة</td>
+                    </tr>
+                `).join('');
+
+                // Render Actionable Next Steps Cards
+                const actionBox = document.getElementById('action-plan-container');
+                if (data.action_plan && data.action_plan.length > 0) {
+                    actionBox.innerHTML = data.action_plan.map(act => `
+                        <div class="p-4 rounded-2xl bg-navy-900 border border-slate-800 flex flex-col justify-between space-y-3">
+                            <div class="space-y-1">
+                                <span class="text-[10px] font-mono font-bold text-emerald-400 uppercase"><i class="fa-solid fa-circle-check ml-1"></i> خطوة إصلاح موصى بها</span>
+                                <h4 class="text-xs font-bold text-white">${act.title}</h4>
+                                <p class="text-[11px] text-slate-400 leading-relaxed">${act.detail}</p>
+                            </div>
+                            <button onclick="openRemediation('${act.action_type}', '${data.domain}')" class="bg-navy-800 hover:bg-navy-700 text-sand-gold border border-sand-gold/30 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1">
+                                <i class="fa-solid fa-code"></i> <span>${act.btn}</span>
+                            </button>
+                        </div>
                     `).join('');
-                } else {
-                    tbody.innerHTML = `
-                        <tr class="zebra-row">
-                            <td colspan="4" class="p-4 text-center text-emerald-400 font-bold">لا توجد مخالفات مسجلة - الموقع مستوفٍ لمتطلبات القانون 08.09</td>
-                        </tr>
-                    `;
                 }
 
-                document.getElementById('dashboard').scrollIntoView({ behavior: 'smooth' });
+                updateBadgeCode(data.domain, data.score);
             } catch (err) {
                 console.error("Audit error:", err);
             } finally {
@@ -807,112 +795,146 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             }
         }
 
-        // Strategic Tabs Switcher
-        function switchStratTab(tab) {
-            ['consent', 'dpia', 'cookie-audit', 'i18n-guide'].forEach(t => {
-                const btn = document.getElementById(`st-btn-${t}`);
-                const panel = document.getElementById(`st-panel-${t}`);
-                if (t === tab) {
-                    btn.className = "flex-1 min-w-[140px] px-3 py-2.5 rounded-xl text-xs font-bold transition bg-emerald-500/25 text-emerald-300 border border-emerald-500/40";
-                    panel.classList.remove('hidden');
-                } else {
-                    btn.className = "flex-1 min-w-[140px] px-3 py-2.5 rounded-xl text-xs font-bold transition text-slate-400 hover:text-white";
-                    panel.classList.add('hidden');
-                }
-            });
-            if (tab === 'consent') loadConsentLogs();
-            if (tab === 'i18n-guide') generatePolicyText('ar');
+        // REMEDIATION ROADMAP MODAL ACTIONS
+        function openRemediation(type, domain) {
+            domain = domain || document.getElementById('target-input').value.trim() || "votre-site.ma";
+            const modal = document.getElementById('remediation-modal');
+            const title = document.getElementById('rem-modal-title');
+            const body = document.getElementById('rem-modal-body');
+
+            if (type === 'policy_gen') {
+                title.textContent = `سياسة خصوصية متوافقة مع القانون 08.09 (${domain})`;
+                body.innerHTML = `
+                    <p class="text-emerald-400 font-bold">// انسخ هذا النص وضعه في صفحة سياسة الخصوصية بموقعك:</p>
+                    <textarea id="rem-copy-area" readonly class="w-full h-44 bg-navy-950 p-3 rounded-xl border border-slate-700 text-[11px] text-slate-200">
+إشعار حماية المعطيات الشخصية (${domain})
+وفقاً لمقتضيات القانون رقم 08.09 المتعلق بحماية الأشخاص الذاتيين تجاه معالجة المعطيات ذات الطابع الشخصي الصادر بالظهير الشريف 1.09.15:
+تخضع المعطيات المجمعة عبر هذا الموقع لمعالجة مصرح بها لدى اللجنة الوطنية لمراقبة حماية المعطيات ذات الطابع الشخصي (CNDP) تحت رقم الوصل [D-W-XXXX/2026].
+يمكن للمستخدمين ممارسة حقوق الولوج والتصحيح والتعرض المنصوص عليها في المواد 7 و 8 و 9 عبر مراسلة مسؤول حماية المعطيات (DPO) على البريد الإلكتروني: dpo@${domain}.
+                    </textarea>
+                `;
+            } else if (type === 'cookie_code') {
+                title.textContent = `كود لافتة كوكيز متوافقة مع مداولة CNDP رقم 08-2020`;
+                body.innerHTML = `
+                    <p class="text-sand-gold font-bold">// كود لافتة فوري يضمن حظر التتبع المسبق وتوفير زر 'رفض الكل':</p>
+                    <textarea id="rem-copy-area" readonly class="w-full h-44 bg-navy-950 p-3 rounded-xl border border-slate-700 text-[11px] text-emerald-400 font-mono">
+<div id="cndp-cookie-banner" style="position:fixed;bottom:15px;left:15px;right:15px;background:#0c1526;border:1px solid #10b981;border-radius:12px;padding:16px;z-index:9999;color:#fff;display:flex;justify-content:space-between;align-items:center;font-family:sans-serif;font-size:12px;">
+  <span>نحترم خصوصيتك طبقاً للقانون 08.09 ومداولة 08-2020. هل توافق على استخدام ملفات التحليل الإحصائي؟</span>
+  <div style="display:flex;gap:8px;">
+    <button onclick="document.getElementById('cndp-cookie-banner').remove()" style="background:#1f2937;color:#f87171;border:none;padding:6px 14px;border-radius:8px;cursor:pointer;font-weight:bold;">رفض الكل (Refuser)</button>
+    <button onclick="localStorage.setItem('cndp_consent','1');document.getElementById('cndp-cookie-banner').remove()" style="background:#10b981;color:#000;border:none;padding:6px 14px;border-radius:8px;cursor:pointer;font-weight:bold;">قبول الكل (Accepter)</button>
+  </div>
+</div>
+                    </textarea>
+                `;
+            } else {
+                title.textContent = `دليل إيداع التصريح المسبق D-1 لدى CNDP`;
+                body.innerHTML = `
+                    <div class="space-y-2 text-slate-200">
+                        <p class="font-bold text-emerald-400">الخطوات الإجرائية الرسمية:</p>
+                        <ol class="list-decimal list-inside space-y-1 text-slate-300">
+                            <li>تحميل استمارة التصريح المسبق (D-1) من البوابة الإلكترونية الرسمية لـ CNDP.</li>
+                            <li>تحديد غايات المعالجة وفئات المعطيات المجمعة ومدة الحفظ.</li>
+                            <li>تحديد تدابير الأمن التقني (تشفير TLS وخوادم الاستضافة).</li>
+                            <li>إيداع الملف واستلام وصل الإيداع القانوني لنشره في تذييل الموقع.</li>
+                        </ol>
+                    </div>
+                `;
+            }
+            modal.classList.remove('hidden');
         }
 
-        // Consent Logs Tracker
-        async function loadConsentLogs() {
-            try {
-                const res = await fetch('/api/get-consent-logs');
-                const logs = await res.json();
-                const tbody = document.getElementById('consent-table-body');
-                tbody.innerHTML = logs.map(l => `
-                    <tr class="zebra-row">
-                        <td class="p-2.5 text-slate-300">${l[1]}</td>
-                        <td class="p-2.5 text-emerald-400">${l[2]}</td>
-                        <td class="p-2.5 text-sand-gold">${l[3]}</td>
-                        <td class="p-2.5 text-slate-300">${l[4]}</td>
-                        <td class="p-2.5 text-slate-400 text-[10px]">${l[5].substring(0, 10)}...</td>
-                        <td class="p-2.5 text-slate-400">${l[6]}</td>
-                        <td class="p-2.5 text-emerald-400"><i class="fa-solid fa-circle-check"></i> ممتثل</td>
-                    </tr>
-                `).join('');
-            } catch (e) {
-                console.error("Consent load error:", e);
+        function closeRemediationModal() {
+            document.getElementById('remediation-modal').classList.add('hidden');
+        }
+
+        function copyRemediationSnippet() {
+            const area = document.getElementById('rem-copy-area');
+            if (area) {
+                area.select();
+                document.execCommand('copy');
+                const btn = document.getElementById('btn-copy-rem');
+                btn.innerHTML = `<i class="fa-solid fa-check"></i> <span>تم النسخ بنجاح!</span>`;
+                setTimeout(() => {
+                    btn.innerHTML = `<i class="fa-solid fa-copy"></i> <span>نسخ النص / الكود</span>`;
+                }, 2000);
+            } else {
+                closeRemediationModal();
             }
         }
 
-        async function recordConsent(e) {
+        // SHARE-TO-UNLOCK PDF
+        function handlePDFClick() {
+            if (isPdfUnlocked) {
+                window.print();
+            } else {
+                document.getElementById('share-modal').classList.remove('hidden');
+            }
+        }
+
+        function triggerViralShare(platform) {
+            const shareText = encodeURIComponent(`قمنا بفحص امتثال موقعنا وحماية البيانات عبر منصة Soverify السيادية وحصلنا على نتيجة ممتازة! تحقق من امتثال موقعك لـ CNDP و GDPR فورياً:`);
+            const appUrl = encodeURIComponent(window.location.origin);
+            const url = (platform === 'linkedin')
+                ? `https://www.linkedin.com/sharing/share-offsite/?url=${appUrl}`
+                : `https://twitter.com/intent/tweet?text=${shareText}&url=${appUrl}`;
+            window.open(url, '_blank', 'width=600,height=500');
+            setTimeout(() => { bypassUnlock(); }, 1200);
+        }
+
+        function bypassUnlock() {
+            isPdfUnlocked = true;
+            document.getElementById('share-modal').classList.add('hidden');
+            document.getElementById('txt-pdf-btn').textContent = "طباعة PDF متاح الآن 🖨️";
+            window.print();
+        }
+
+        // BADGE CODE GENERATION
+        function updateBadgeCode(domain, score) {
+            domain = domain || document.getElementById('target-input').value.trim() || "example.com";
+            score = score || 88;
+            const origin = window.location.origin;
+            const badgeImgUrl = `${origin}/api/badge?domain=${domain}&score=${score}&framework=${currentFramework}`;
+            document.getElementById('badge-img').src = badgeImgUrl;
+            const snippet = `<a href="${origin}" target="_blank" title="Verified by Soverify Sovereign RegTech">\n  <img src="${badgeImgUrl}" alt="Soverify Compliant Badge" height="32" />\n</a>`;
+            document.getElementById('badge-code-box').value = snippet;
+        }
+
+        function copyBadgeCode() {
+            const box = document.getElementById('badge-code-box');
+            box.select();
+            document.execCommand('copy');
+            const btn = document.getElementById('btn-copy-badge');
+            btn.innerHTML = `<i class="fa-solid fa-check"></i> <span>تم النسخ بنجاح!</span>`;
+            setTimeout(() => {
+                btn.innerHTML = `<i class="fa-solid fa-copy"></i> <span>نسخ الكود</span>`;
+            }, 2000);
+        }
+
+        // BREACH RADAR LEADS
+        async function handleBreachSubscribe(e) {
             e.preventDefault();
-            const user = document.getElementById('cs-user').value.trim() || "user_demo";
-            await fetch('/api/log-consent', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ user_id: user, domain: document.getElementById('target-input').value, consent_type: "Explicit Opt-In", purposes: "تحليلات داخلية سيادية" })
-            });
-            loadConsentLogs();
-        }
+            const email = document.getElementById('sub-email').value.trim();
+            const domain = document.getElementById('target-input').value.trim();
+            const msgBox = document.getElementById('sub-result-msg');
 
-        // DPIA Calculator
-        function calculateDPIA() {
-            const dt = document.getElementById('dpia-datatype').value;
-            const vol = document.getElementById('dpia-volume').value;
-            const host = document.getElementById('dpia-hosting').value;
-            const resBox = document.getElementById('dpia-result');
-            resBox.classList.remove('hidden');
-
-            let risk = "منخفض";
-            let color = "text-emerald-400";
-            let desc = "المعالجة الحالية لا تقتضي ترخيصاً مسبقاً من CNDP، ويكفي إيداع التصريح العادي D-1.";
-
-            if (dt === 'sensitive' || vol === 'high' || host === 'foreign') {
-                risk = "مرتفع جداً (إلزامية تقييم الأثر وترخيص CNDP)";
-                color = "text-rose-400";
-                desc = "وفقاً للمادة 23 والمادة 43: المعالجة تفرض إنجاز تقرير DPIA كامل، والحصول على ترخيص كتابي مسبق من CNDP قبل إطلاق المنصة لتفادي الغرامات (المادة 58 والمادة 63).";
-            } else if (dt === 'financial' || vol === 'medium') {
-                risk = "متوسط";
-                color = "text-sand-gold";
-                desc = "توصي CNDP بتطبيق معايير التشفير الصارم وتوثيق سجل المعالجات وتعيين DPO.";
-            }
-
-            resBox.innerHTML = `
-                <div class="space-y-1">
-                    <span class="font-bold ${color}">مستوى الخطر القانوني: ${risk}</span>
-                    <p class="text-slate-300 leading-relaxed">${desc}</p>
-                </div>
-            `;
-        }
-
-        // Cookie Simulator
-        function simulateConsent(choice) {
-            const status = document.getElementById('cookie-sim-status');
-            if (choice === 'قبول الكل') {
-                status.innerHTML = `<span class="text-emerald-400">تم تسجيل الموافقة الصريحة وحفظ البصمة المشفرة في سجلات الإثبات.</span>`;
-            } else if (choice === 'رفض الكل') {
-                status.innerHTML = `<span class="text-sand-gold">تم حجب كافة ملفات التتبع احتراماً لمداولة CNDP رقم 08-2020.</span>`;
-            } else {
-                status.innerHTML = `<span class="text-slate-300">تم فتح لوحة التخصيص للمستخدم.</span>`;
+            try {
+                const res = await fetch('/api/subscribe-breach-alerts', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: email, domain: domain, framework: currentFramework })
+                });
+                const data = await res.json();
+                msgBox.classList.remove('hidden');
+                msgBox.innerHTML = `<i class="fa-solid fa-circle-check"></i> ${data.message}`;
+                document.getElementById('sub-email').value = '';
+            } catch (err) {
+                msgBox.classList.remove('hidden');
+                msgBox.textContent = "حدث خطأ أثناء التسجيل. يرجى المحاولة لاحقاً.";
             }
         }
 
-        // Policy Generator
-        function generatePolicyText(lang) {
-            const domain = document.getElementById('target-input').value.trim() || "votre-site.ma";
-            const box = document.getElementById('policy-generated-box');
-            if (lang === 'ar') {
-                box.value = `إشعار حماية المعطيات الشخصية (${domain}):\\nوفقاً لمقتضيات القانون رقم 08.09 المتعلق بحماية الأشخاص الذاتيين تجاه معالجة المعطيات ذات الطابع الشخصي، فإن المعطيات المجمعة عبر هذا الموقع تخضع لمعالجة مصرح بها لدى اللجنة الوطنية لمراقبة حماية المعطيات ذات الطابع الشخصي (CNDP) تحت رقم وصل [D-W-XXXX/2026].\\nيمكنكم ممارسة حقوق الولوج والتصحيح والتعرض المنصوص عليها في المواد 7 و 8 و 9 عبر مراسلتنا على: dpo@${domain}.`;
-            } else if (lang === 'fr') {
-                box.value = `Politique de Confidentialité (${domain}) :\\nConformément à la loi n° 08-09 relative à la protection des personnes physiques à l'égard du traitement des données à caractère personnel, les données collectées font l'objet d'un traitement déclaré auprès de la CNDP sous le récépissé n° [D-W-XXXX/2026].\\nVous pouvez exercer vos droits d'accès, de rectification et d'opposition (articles 7, 8 et 9) en écrivant à : dpo@${domain}.`;
-            } else {
-                box.value = `Privacy Notice (${domain}):\\nIn compliance with Moroccan Law No. 08-09 on the protection of individuals with regard to the processing of personal data, information collected is registered with the CNDP under receipt no. [D-W-XXXX/2026].\\nYou may exercise your rights of access, rectification, and objection under Articles 7, 8, and 9 by contacting: dpo@${domain}.`;
-            }
-        }
-
-        // AI DPO Chat Handler (Real AJAX / Fetch)
+        // AI DPO Chat
         async function handleChatSubmit(e) {
             e.preventDefault();
             const input = document.getElementById('chat-input');
@@ -920,140 +942,62 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             if (!prompt) return;
 
             const chatBox = document.getElementById('chat-box');
-            chatBox.innerHTML += `
-                <div class="p-3 rounded-2xl bg-navy-850 border border-slate-700 text-slate-200 mr-8">
-                    <span class="font-bold text-sand-gold block mb-1">أنت:</span>
-                    ${prompt}
-                </div>
-            `;
+            chatBox.innerHTML += `<div class="p-2.5 rounded-xl bg-navy-850 text-slate-200 mr-6 font-bold">${prompt}</div>`;
             input.value = '';
-            chatBox.scrollTop = chatBox.scrollHeight;
-
-            const loadingId = "load_" + Date.now();
-            chatBox.innerHTML += `
-                <div id="${loadingId}" class="p-3 rounded-2xl bg-navy-900 border border-slate-800 text-slate-400 ml-8 animate-pulse">
-                    <i class="fa-solid fa-spinner fa-spin ml-1 text-emerald-400"></i> جاري استحضار السند القانوني من نصوص القانون 08-09...
-                </div>
-            `;
-            chatBox.scrollTop = chatBox.scrollHeight;
 
             try {
                 const res = await fetch('/api/dpo-chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ prompt: prompt, lang: currentLang })
+                    body: JSON.stringify({ prompt: prompt, framework: currentFramework, lang: currentLang })
                 });
                 const data = await res.json();
-                document.getElementById(loadingId).remove();
-
                 chatBox.innerHTML += `
-                    <div class="p-3.5 rounded-2xl bg-navy-900 border border-emerald-500/30 text-slate-200 ml-8 space-y-2 leading-relaxed">
-                        <div class="flex items-center justify-between">
-                            <span class="font-bold text-emerald-400">مستشار DPO السيادي:</span>
-                            <span class="text-[10px] font-mono text-sand-gold">${data.articles.join(' • ')}</span>
+                    <div class="p-3 rounded-xl bg-navy-900 border border-emerald-500/30 text-slate-200 ml-6 space-y-1">
+                        <div class="flex justify-between text-[10px] font-mono text-sand-gold">
+                            <span>Soverify DPO (${currentFramework.toUpperCase()})</span>
+                            <span>${data.articles.join(' • ')}</span>
                         </div>
                         <p>${data.reply}</p>
-                        <div class="p-2 rounded-xl bg-navy-950 border border-emerald-500/20 text-emerald-300 text-[11px]">
-                            <i class="fa-solid fa-lightbulb ml-1"></i> <strong>التسوية المقترحة:</strong> ${data.remediation}
-                        </div>
                     </div>
                 `;
                 chatBox.scrollTop = chatBox.scrollHeight;
-            } catch (err) {
-                document.getElementById(loadingId).remove();
-                chatBox.innerHTML += `<div class="p-3 rounded-2xl bg-rose-950/40 border border-rose-500/30 text-rose-300 text-xs">تعذر الاتصال بالمحرك. يرجى المحاولة لاحقاً.</div>`;
-            }
-        }
-
-        function quickAsk(q) {
-            document.getElementById('chat-input').value = q;
-            handleChatSubmit(new Event('submit'));
-        }
-
-        function clearChat() {
-            document.getElementById('chat-box').innerHTML = `
-                <div class="p-3.5 rounded-2xl bg-navy-900 border border-slate-800 text-slate-200 leading-relaxed">
-                    <span class="font-bold text-emerald-400 block mb-1">مرحباً بك! أنا مستشارك الرقمي في القانون 08.09 🇲🇦:</span>
-                    يمكنك سؤالي عن شروط كوكيز التتبع، عقوبات عدم التصريح لـ CNDP، أو التوطين السيادي للمعطيات.
-                </div>
-            `;
-        }
-
-        // PDF & CSV Export Functions
-        function exportPDF() {
-            window.print();
+            } catch (err) {}
         }
 
         function exportCSV() {
-            window.location.href = '/api/export-audit-csv';
+            window.location.href = `/api/export-audit-csv?framework=${currentFramework}`;
         }
 
-        // Particle Mesh Background Engine
+        // Particles Background
         function initCyberMesh() {
             const canvas = document.getElementById('cyber-canvas');
             const ctx = canvas.getContext('2d');
             let w = canvas.width = window.innerWidth;
             let h = canvas.height = window.innerHeight;
-            const particles = [];
-            const count = Math.min(45, Math.floor(w / 35));
-
-            for (let i = 0; i < count; i++) {
-                particles.push({
-                    x: Math.random() * w,
-                    y: Math.random() * h,
-                    vx: (Math.random() - 0.5) * 0.45,
-                    vy: (Math.random() - 0.5) * 0.45,
-                    radius: Math.random() * 1.6 + 1
-                });
+            const pts = [];
+            for (let i = 0; i < 35; i++) {
+                pts.push({ x: Math.random()*w, y: Math.random()*h, vx: (Math.random()-0.5)*0.4, vy: (Math.random()-0.5)*0.4 });
             }
-
             function draw() {
-                ctx.clearRect(0, 0, w, h);
+                ctx.clearRect(0,0,w,h);
                 ctx.fillStyle = '#10b981';
-                for (let i = 0; i < particles.length; i++) {
-                    const p = particles[i];
-                    p.x += p.vx;
-                    p.y += p.vy;
-                    if (p.x < 0) p.x = w;
-                    if (p.x > w) p.x = 0;
-                    if (p.y < 0) p.y = h;
-                    if (p.y > h) p.y = 0;
-
-                    ctx.beginPath();
-                    ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-                    ctx.fill();
-
-                    for (let j = i + 1; j < particles.length; j++) {
-                        const p2 = particles[j];
-                        const dx = p.x - p2.x;
-                        const dy = p.y - p2.y;
-                        const dist = Math.sqrt(dx * dx + dy * dy);
-                        if (dist < 130) {
-                            ctx.strokeStyle = `rgba(16, 185, 129, ${0.18 * (1 - dist / 130)})`;
-                            ctx.lineWidth = 0.7;
-                            ctx.beginPath();
-                            ctx.moveTo(p.x, p.y);
-                            ctx.lineTo(p2.x, p2.y);
-                            ctx.stroke();
-                        }
-                    }
-                }
+                pts.forEach(p => {
+                    p.x += p.vx; p.y += p.vy;
+                    if (p.x < 0 || p.x > w) p.vx *= -1;
+                    if (p.y < 0 || p.y > h) p.vy *= -1;
+                    ctx.beginPath(); ctx.arc(p.x, p.y, 1.4, 0, Math.PI*2); ctx.fill();
+                });
                 requestAnimationFrame(draw);
             }
             draw();
-
-            window.addEventListener('resize', () => {
-                w = canvas.width = window.innerWidth;
-                h = canvas.height = window.innerHeight;
-            });
         }
 
-        // Init on DOM Loaded
         window.addEventListener('DOMContentLoaded', () => {
             initCyberMesh();
             runTypewriter();
-            loadConsentLogs();
-            generatePolicyText('ar');
+            updateBadgeCode();
+            handleAudit(new Event('submit'));
         });
     </script>
 </body>
@@ -1061,7 +1005,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 """
 
 # ==============================================================================
-# 🌐 5. مسارات خادم Flask (Application Endpoints)
+# 🌐 5. مسارات الخادم والميزات الفيروسية (Flask Viral Endpoints)
 # ==============================================================================
 @app.route("/", methods=["GET"])
 def index():
@@ -1071,64 +1015,79 @@ def index():
 def api_audit():
     data = request.get_json(silent=True) or request.form or {}
     target = data.get("target", "banquepopulaire.ma")
-    res = audit_target(target)
-    return jsonify(res)
+    framework = data.get("framework", "cndp").lower()
+    return jsonify(audit_target(target, framework))
 
 @app.route("/api/dpo-chat", methods=["POST"])
 def api_dpo_chat():
     data = request.get_json(silent=True) or request.form or {}
     prompt = data.get("prompt", "")
+    framework = data.get("framework", "cndp").lower()
     lang = data.get("lang", "ar")
-    res = PurePythonAIEngine.query(prompt, lang)
-    return jsonify(res)
+    return jsonify(GlobalAIEngine.query(prompt, framework, lang))
 
-@app.route("/api/get-consent-logs", methods=["GET"])
-def api_get_consent_logs():
-    conn = sqlite3.connect(DB_FILE)
-    c = conn.cursor()
-    c.execute('SELECT * FROM consent_logs ORDER BY id DESC LIMIT 10')
-    rows = c.fetchall()
-    conn.close()
-    return jsonify(rows)
+# EMBEDDABLE TRUST BADGE SVG GENERATOR
+@app.route("/api/badge", methods=["GET"])
+def api_badge():
+    domain = request.args.get("domain", "verified-site.ma")
+    score = request.args.get("score", "88")
+    framework = request.args.get("framework", "CNDP").upper()
 
-@app.route("/api/log-consent", methods=["POST"])
-def api_log_consent():
+    svg = f"""<svg xmlns="http://www.w3.org/2000/svg" width="220" height="32" viewBox="0 0 220 32">
+  <rect width="220" height="32" rx="7" fill="#070d18" stroke="#10b981" stroke-width="1.2"/>
+  <circle cx="16" cy="16" r="6" fill="#10b981"/>
+  <text x="30" y="20" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif" font-size="11" font-weight="700" fill="#f3f4f6">Soverify Verified</text>
+  <rect x="150" y="5" width="62" height="22" rx="5" fill="#10b981" fill-opacity="0.2"/>
+  <text x="181" y="20" text-anchor="middle" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif" font-size="11" font-weight="800" fill="#34d399">{score}% {framework}</text>
+</svg>"""
+    return Response(svg, mimetype="image/svg+xml")
+
+# BREACH RADAR LEADS CAPTURE
+@app.route("/api/subscribe-breach-alerts", methods=["POST"])
+def api_sub_breach():
     data = request.get_json(silent=True) or request.form or {}
-    user_id = data.get("user_id", f"usr_{int(time.time())}")
-    domain = data.get("domain", "unknown.ma")
-    c_type = data.get("consent_type", "Opt-In")
-    purposes = data.get("purposes", "ضرورية، تحليلات داخلية")
-    ip_hash = hashlib.md5(f"{request.remote_addr}_{time.time()}".encode()).hexdigest()
+    email = data.get("email", "").strip()
+    domain = data.get("domain", "").strip()
+    framework = data.get("framework", "cndp")
 
-    conn = sqlite3.connect(DB_FILE)
-    c = conn.cursor()
-    c.execute('''
-        INSERT INTO consent_logs (user_identifier, domain, consent_type, purposes, ip_hash, cndp_valid)
-        VALUES (?, ?, ?, ?, ?, 1)
-    ''', (user_id, domain, c_type, purposes, ip_hash))
-    conn.commit()
-    conn.close()
-    return jsonify({"success": True, "message": "تم توثيق الموافقة في سجلات الإثبات"})
+    if not email:
+        return jsonify({"success": False, "message": "يرجى إدخال بريد إلكتروني صالح."}), 400
+
+    try:
+        conn = sqlite3.connect(DB_FILE)
+        c = conn.cursor()
+        c.execute('''
+            INSERT INTO breach_subscribers (email, domain, framework, ip_address)
+            VALUES (?, ?, ?, ?)
+        ''', (email, domain, framework, request.remote_addr))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        pass
+
+    return jsonify({
+        "success": True,
+        "message": f"تم تفعيل رادار الحراسة بنجاح لـ {email}! سيتم إشعارك فور رصد أي تسريب أو ثغرة تشريعية."
+    })
 
 @app.route("/api/export-audit-csv", methods=["GET"])
 def api_export_csv():
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
-    c.execute('SELECT target, domain, score, status, fines_mad, created_at FROM audit_history ORDER BY created_at DESC')
+    c.execute('SELECT target, domain, framework, score, status, fines_amount, fines_currency, created_at FROM audit_history ORDER BY created_at DESC')
     rows = c.fetchall()
     conn.close()
 
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(["Target URL", "Domain", "Compliance Score", "Status", "Potential Fines (MAD)", "Timestamp"])
+    writer.writerow(["Target URL", "Domain", "Framework", "Compliance Score", "Status", "Potential Fines", "Currency", "Timestamp"])
     for r in rows:
         writer.writerow(r)
 
     response = Response(output.getvalue(), mimetype="text/csv")
-    response.headers["Content-Disposition"] = "attachment; filename=soverify_audit_log.csv"
+    response.headers["Content-Disposition"] = "attachment; filename=soverify_viral_audit.csv"
     return response
 
-# مسار وصول وتحميل مباشر للملف
 @app.route("/app.py", methods=["GET"])
 def get_raw_app_py():
     with open(__file__, "r", encoding="utf-8") as f:
