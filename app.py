@@ -7,6 +7,7 @@ Multi-Framework: Morocco (CNDP Law 08/09) | EU (GDPR) | US California (CCPA)
 
 Unified, self-contained single-file Python/Flask application.
 WSGI Entry Point: application = app
+Founder & Chief Architect: Taha Setri (طه الستري)
 ================================================================================
 """
 
@@ -20,7 +21,7 @@ import re
 import html
 import urllib.parse
 from datetime import datetime
-from flask import Flask, request, jsonify, Response
+from flask import Flask, request, jsonify, Response, redirect
 
 app = Flask(__name__)
 application = app
@@ -103,7 +104,7 @@ def sanitize_domain(target):
 
 @app.after_request
 def apply_security_headers(res):
-    res.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+    res.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains; preload'
     res.headers['X-Content-Type-Options'] = 'nosniff'
     res.headers['X-Frame-Options'] = 'SAMEORIGIN'
     res.headers['X-XSS-Protection'] = '1; mode=block'
@@ -190,9 +191,9 @@ def audit_target(target_input, framework="cndp"):
     }
 
 # ------------------------------------------------------------------------------
-# واجهة المستخدم المؤسسية الموحدة (Sovereign UI HTML)
+# واجهة المستخدم المؤسسية الموحدة (Sovereign UI HTML) - الجزء الأول
 # ------------------------------------------------------------------------------
-SOVEREIGN_UI_HTML = """<!DOCTYPE html>
+SOVEREIGN_UI_HTML_PART1 = """<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
@@ -227,11 +228,10 @@ SOVEREIGN_UI_HTML = """<!DOCTYPE html>
         .modal-container.active { opacity: 1; pointer-events: auto; }
         .modal-card { transform: scale(0.95) translateY(15px); transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
         .modal-container.active .modal-card { transform: scale(1) translateY(0); }
-        .btn-interactive { transition: all 0.2s ease; }
+        .btn-interactive { transition: all 0.2s ease; cursor: pointer; }
         .btn-interactive:hover { transform: translateY(-2px); box-shadow: 0 10px 25px -5px rgba(16, 185, 129, 0.3); }
         .btn-interactive:active { transform: scale(0.98); }
 
-        /* حركة نبض إطار بطاقة رؤية المؤسس */
         @keyframes subtlePulseBorder {
             0%, 100% {
                 border-color: rgba(223, 177, 91, 0.45);
@@ -246,7 +246,6 @@ SOVEREIGN_UI_HTML = """<!DOCTYPE html>
             animation: subtlePulseBorder 4s ease-in-out infinite;
         }
 
-        /* محرك الشريط المتحرك الحديث عالي السلاسة ومنعدم التداخل */
         .ticker-viewport {
             overflow: hidden;
             width: 100%;
@@ -274,20 +273,16 @@ SOVEREIGN_UI_HTML = """<!DOCTYPE html>
             animation-play-state: paused !important;
         }
         @keyframes modernTicker {
-            0% {
-                transform: translate3d(0, 0, 0);
-            }
-            100% {
-                transform: translate3d(-50%, 0, 0);
-            }
+            0% { transform: translate3d(0, 0, 0); }
+            100% { transform: translate3d(-50%, 0, 0); }
         }
 
         @media print {
             body { background: #040711 !important; }
             .no-print { display: none !important; }
             #cert-modal { position: static !important; display: block !important; opacity: 1 !important; pointer-events: auto !important; }
-            #cert-locked-view { display: none !important; }
-            #cert-unlocked-view { display: block !important; }
+            #cert-locked-overlay { display: none !important; }
+            #cert-printable-area { display: block !important; }
         }
     </style>
 </head>
@@ -300,7 +295,7 @@ SOVEREIGN_UI_HTML = """<!DOCTYPE html>
                 <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                 <span class="relative inline-flex rounded-full h-2 w-2 bg-cndp-500"></span>
             </span>
-            <span class="text-cndp-500 font-black text-xs">VerifyOS™ v5.4.0</span>
+            <span class="text-cndp-500 font-black text-xs">VerifyOS™ Sovereign Core</span>
         </div>
 
         <div class="flex-1 mx-3 overflow-hidden">
@@ -347,6 +342,10 @@ SOVEREIGN_UI_HTML = """<!DOCTYPE html>
                     <span>الباقات والأسعار</span>
                     <span class="block text-[9px] font-normal text-slate-500 font-mono">Plans & Pricing</span>
                 </a>
+                <a href="#nginx-hardening-sec" class="px-3 py-1.5 rounded-xl text-emerald-400 hover:bg-navy-800 transition">
+                    <span>تحصين Nginx</span>
+                    <span class="block text-[9px] font-normal text-slate-500 font-mono">Nginx Hardening</span>
+                </a>
                 <a href="#advisor-sec" class="px-3 py-1.5 rounded-xl text-purple-400 hover:bg-navy-800 transition">
                     <span>المستشار القانوني</span>
                     <span class="block text-[9px] font-normal text-slate-500 font-mono">Legal Advisor AI</span>
@@ -362,13 +361,12 @@ SOVEREIGN_UI_HTML = """<!DOCTYPE html>
             </nav>
 
             <div class="flex items-center gap-2.5">
-                <!-- زر الشهادة في الهيدر: افتراضياً مقفل للخطة المجانية ويفتح إما بعد الترقية أو بمفتاح المشرف -->
                 <button id="header-cert-btn" onclick="openCertModal()" class="btn-interactive bg-navy-800 hover:bg-navy-750 text-sand-gold border border-sand-gold/50 px-4 py-2 rounded-xl text-xs font-black flex flex-col items-center justify-center shadow-lg transition text-center">
                     <div class="flex items-center gap-1.5">
-                        <i class="fa-solid fa-lock text-amber-400"></i>
-                        <span>الشهادة والتقرير (باقة مدفوعة 🔒)</span>
+                        <i class="fa-solid fa-lock text-rose-400"></i>
+                        <span>الشهادة والتقرير (حصرية للمدفوع 🔒)</span>
                     </div>
-                    <span class="text-[9px] font-mono text-sand-gold/70 font-normal mt-0.5">Official Cert & PDF (Paid Only)</span>
+                    <span class="text-[9px] font-mono font-bold px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/40 mt-1">🔒 محصن للخطة المدفوعة / Enterprise Locked</span>
                 </button>
             </div>
         </div>
@@ -395,7 +393,7 @@ SOVEREIGN_UI_HTML = """<!DOCTYPE html>
                         Non-compliance fines exceed 200,000 MAD with penal sanctions for corporate executives!
                     </p>
                     <p class="text-xs text-slate-300 leading-relaxed max-w-3xl mt-1">
-                        أكثر من 85% من المواقع والمنصات بالمغرب تقع في مخالفات صريحة لمداولة 08-2020 ونقل المعطيات للخارج. استثمار وقائي يبدأ من <strong class="text-sand-gold font-mono">5,000 درهم</strong> يمنح مؤسستك تقرير تدقيق معتمد وشهادة سيادية رسمية بصيغة PDF تحميك من الغرامات الباهظة والمسؤولية الجنائية للقانون 08-09.
+                        أكثر من 85% من المواقع والمنصات بالمغرب تقع في مخالفات صريحة لمداولة 08-2020 ونقل المعطيات للخارج. استثمار وقائي يبدأ من <strong class="text-sand-gold font-mono">5,000 درهم</strong> يمنح مؤسستك تقرير تدقيق معتمد وشهادة سيادية رسمية تحميك من الغرامات الباهظة والمسؤولية الجنائية للقانون 08-09.
                     </p>
                 </div>
             </div>
@@ -410,7 +408,6 @@ SOVEREIGN_UI_HTML = """<!DOCTYPE html>
 
         <!-- 4. محرك فحص الامتثال ومطابقة مداولة CNDP (Scanner & Framework) -->
         <section id="audit-sec" class="glass-panel p-6 sm:p-8 rounded-3xl border border-cndp-500/30 space-y-6">
-            <!-- اختيار الإطار القانوني -->
             <div class="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-5">
                 <div class="flex items-center gap-2">
                     <span class="text-xs text-slate-400 font-bold">الإطار القانوني <span class="text-[10px] font-mono text-slate-500">/ Legal Framework:</span></span>
@@ -432,7 +429,6 @@ SOVEREIGN_UI_HTML = """<!DOCTYPE html>
                 </div>
             </div>
 
-            <!-- عنوان الفحص الرئيسي -->
             <div class="text-center max-w-2xl mx-auto space-y-2 pt-2">
                 <h2 class="text-2xl sm:text-3xl font-black text-white">
                     مطابقة مداولة اللجنة الوطنية CNDP رقم 2020-08
@@ -441,14 +437,10 @@ SOVEREIGN_UI_HTML = """<!DOCTYPE html>
                     CNDP National Commission Deliberation No. 08-2020 Compliance Engine
                 </p>
                 <p class="text-xs text-slate-400">
-                    منظومة فحص الامتثال السحابي، كشف تعقب الكوكيز، وتوليد كود التحصين Nginx. مخرجات الشهادة وتقرير التدقيق الموثق (PDF) حصرية للمشتركين والمؤسسات.
-                </p>
-                <p class="text-[11px] font-mono text-slate-500">
-                    Sovereign cloud scanner, cookie tracking audit, and Nginx hardening generator.
+                    منظومة فحص الامتثال السحابي، كشف تعقب الكوكيز، وتوليد كود التحصين Nginx. مخرجات الشهادة وتقرير التدقيق الموثق حصرية للمشتركين والمؤسسات.
                 </p>
             </div>
 
-            <!-- شريط الإدخال والتقدم -->
             <div class="max-w-3xl mx-auto space-y-3">
                 <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
                     <div id="scan-progress" class="bg-gradient-to-r from-cndp-500 via-sand-gold to-cndp-500 h-full rounded-full transition-all duration-700" style="width: 75%;"></div>
@@ -469,9 +461,8 @@ SOVEREIGN_UI_HTML = """<!DOCTYPE html>
             </div>
         </section>
 
-        <!-- بطاقة رؤية المؤسس التفاعلية الموسعة والنطاق السيادي فائق الوضوح والانسيابية (Pure CSS Sovereign Ticker) مستقرة في القمة تحت خانة الفحص مباشرة -->
+        <!-- بطاقة رؤية المؤسس التفاعلية الموسعة والنطاق السيادي فائق الوضوح والانسيابية (Taha Setri Marquee) -->
         <section class="founder-stage bg-navy-950/95 rounded-3xl p-6 sm:p-9 border-2 border-sand-gold/60 relative overflow-hidden shadow-2xl backdrop-blur-xl space-y-5 w-full">
-            <!-- شريط علوي تحكمي وتوجيهي فسيح -->
             <div class="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800/90 pb-4 text-xs">
                 <div class="flex items-center gap-2.5">
                     <span class="relative flex h-3 w-3">
@@ -488,7 +479,6 @@ SOVEREIGN_UI_HTML = """<!DOCTYPE html>
                         <span class="hidden sm:inline">قف بالمؤشر أو المس لإيقاف الحركة</span>
                     </div>
 
-                    <!-- أزرار التحكم بالسرعة والإيقاف -->
                     <div class="flex items-center gap-1.5 bg-navy-900 px-2.5 py-1 rounded-xl border border-slate-700 text-[11px]">
                         <button onclick="toggleTickerPlay()" id="ticker-play-btn" class="px-2 py-0.5 rounded text-sand-gold hover:bg-slate-800 font-bold flex items-center gap-1" title="إيقاف / تشغيل الحركة">
                             <i class="fa-solid fa-pause text-[10px]" id="ticker-play-icon"></i>
@@ -501,7 +491,7 @@ SOVEREIGN_UI_HTML = """<!DOCTYPE html>
                 </div>
             </div>
 
-            <!-- حاوية الشريط المتحرك السلس (Pure CSS Seamless Loop - كامل العرض وممتد بدون أي تداخل) -->
+            <!-- حاوية الشريط المتحرك السلس بدون تقطيع -->
             <div class="ticker-viewport w-full overflow-hidden select-none py-3" id="founder-ticker-viewport" dir="ltr" title="مرر المؤشر أو المس لإيقاف الحركة والقراءة بتأنٍ">
                 <div class="ticker-track" id="founder-ticker-track">
                     
@@ -540,7 +530,7 @@ SOVEREIGN_UI_HTML = """<!DOCTYPE html>
                         </div>
                     </div>
 
-                    <!-- النسخة 2 (تضمن الدوران اللانهائي 100% بدون وميض أو انقطاع) -->
+                    <!-- النسخة 2 -->
                     <div class="ticker-item inline-flex items-center gap-10 px-6" dir="rtl">
                         <div class="inline-flex items-center gap-3.5 shrink-0 bg-navy-900/90 px-5 py-3 rounded-2xl border border-sand-gold/30 shadow-md">
                             <span class="text-sand-gold text-3xl font-serif leading-none">❝</span>
@@ -579,7 +569,208 @@ SOVEREIGN_UI_HTML = """<!DOCTYPE html>
             </div>
         </section>
 
-        <!-- 5. المستشار القانوني السيادي الذكي (Sovereign AI Legal Advisor) -->
+        <!-- 5. قسم مصفوفة نتائج الفحص وتفكيك الغرامات المحتملة (Audit Results & Fines Breakdown) -->
+        <section id="results-sec" class="space-y-6">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- بطاقة مؤشر الامتثال السيادي -->
+                <div class="glass-panel p-6 rounded-3xl border border-cndp-500/30 flex flex-col justify-between space-y-4">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-mono text-slate-400">مؤشر الامتثال السيادي</span>
+                        <span id="res-framework-badge" class="text-[10px] font-mono px-2 py-0.5 rounded bg-cndp-500/20 text-cndp-500 font-bold border border-cndp-500/30">CNDP 08-09</span>
+                    </div>
+
+                    <div class="text-center py-3">
+                        <div class="inline-flex items-baseline gap-1">
+                            <span id="res-score" class="text-5xl sm:text-6xl font-black font-mono text-emerald-400">75</span>
+                            <span class="text-xl font-mono text-slate-500">/100</span>
+                        </div>
+                        <p id="res-status-label" class="text-sm font-bold text-emerald-300 mt-1">امتثال معتمد جزئياً (Partiellement Conforme)</p>
+                        <p id="res-domain-label" class="text-xs font-mono text-slate-400 mt-0.5">banquepopulaire.ma</p>
+                    </div>
+
+                    <div class="pt-3 border-t border-slate-800 flex items-center justify-between text-xs">
+                        <span class="text-slate-400">موقع الخادم:</span>
+                        <strong id="res-server-loc" class="font-mono text-white text-[11px]">الدار البيضاء (المغرب 🇲🇦)</strong>
+                    </div>
+
+                    <button id="score-cert-btn" onclick="openCertModal()" class="btn-interactive w-full py-2.5 rounded-xl bg-navy-800 hover:bg-navy-750 text-sand-gold border border-sand-gold/50 text-xs font-black flex flex-col items-center justify-center shadow-lg transition text-center">
+                        <div class="flex items-center gap-1.5">
+                            <i class="fa-solid fa-lock text-rose-400"></i>
+                            <span>تصدير تقرير PDF الرسمي (حصرية للمدفوع 🔒)</span>
+                        </div>
+                        <span class="text-[9px] font-mono font-bold px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/40 mt-1">🔒 محصن للخطة المدفوعة / Enterprise Locked</span>
+                    </button>
+                </div>
+
+                <!-- بطاقة حصر الغرامات والمسؤوليات القانونية الجنائية -->
+                <div class="lg:col-span-2 glass-panel p-6 rounded-3xl border border-rose-500/30 space-y-4 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                            <div class="flex items-center gap-2">
+                                <i class="fa-solid fa-scale-unbalanced-flip text-rose-400 text-base"></i>
+                                <h3 class="font-black text-white text-sm sm:text-base">تحليل المخالفات والغرامات المالية المحتملة</h3>
+                            </div>
+                            <div class="text-right">
+                                <span class="text-[10px] text-slate-400 block font-mono">الحد الأقصى للغرامات:</span>
+                                <strong id="res-fines-total" class="text-base font-mono text-rose-400 font-black">150,000 MAD</strong>
+                            </div>
+                        </div>
+
+                        <div id="res-fines-list" class="space-y-2.5 pt-3">
+                            <div class="p-3 rounded-2xl bg-navy-950 border border-rose-500/20 flex items-start justify-between gap-3 text-xs">
+                                <div>
+                                    <span class="font-mono text-[10px] px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 font-bold">المادتان 43 و 63</span>
+                                    <p class="text-white font-bold mt-1">نقل وتخزين معطيات شخصية بخوادم أجنبية دون ترخيص مسبق من CNDP</p>
+                                    <p class="text-[10px] text-slate-400">يشكل خرقاً للسيادة الرقمية المغربية ويستوجب الإحالة على النيابة العامة.</p>
+                                </div>
+                                <span class="font-mono text-rose-400 font-bold shrink-0 text-xs">100,000 درهم</span>
+                            </div>
+
+                            <div class="p-3 rounded-2xl bg-navy-950 border border-amber-500/20 flex items-start justify-between gap-3 text-xs">
+                                <div>
+                                    <span class="font-mono text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-bold">المداولة 08-2020</span>
+                                    <p class="text-white font-bold mt-1">غياب خيار الرفض المتكافئ وتفعيل ملفات تعريف الارتباط قبل الموافقة الصريحة</p>
+                                    <p class="text-[10px] text-slate-400">تنبيه كتابي ملزم وسحب فوري لترخيص معالجة البيانات.</p>
+                                </div>
+                                <span class="font-mono text-amber-400 font-bold shrink-0 text-xs">سحب الترخيص</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="pt-3 border-t border-slate-800 flex flex-wrap items-center justify-between gap-3 text-xs">
+                        <span class="text-slate-400 flex items-center gap-1.5">
+                            <i class="fa-solid fa-triangle-exclamation text-amber-400 text-xs"></i>
+                            <span>المسؤولية القانونية تقع على عاتق الممثل القانوني للمؤسسة.</span>
+                        </span>
+                        <button onclick="orderViaWhatsApp('طلب تسوية فورية لنتائج التدقيق (5,000 درهم)')" class="btn-interactive text-sand-gold hover:text-white font-bold flex items-center gap-1">
+                            <span>طلب تسوية عاجلة مع مستشار DPO</span>
+                            <i class="fa-solid fa-arrow-left text-[10px]"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 6. باقات الأسعار والاستثمار المؤسسي (Institutional Pricing Grid) -->
+        <section id="pricing-sec" class="space-y-6 pt-4">
+            <div class="text-center max-w-2xl mx-auto space-y-2">
+                <span class="text-xs font-mono font-bold px-3 py-1 rounded-full bg-sand-gold/15 text-sand-gold border border-sand-gold/30">
+                    TRANSPARENT INSTITUTIONAL PRICING • الباقات الرسمية المعتمدة
+                </span>
+                <h2 class="text-2xl sm:text-3xl font-black text-white">
+                    استثمار وقائي يحمي مؤسستك من غرامات ومسؤوليات CNDP
+                </h2>
+                <p class="text-xs font-mono text-sand-gold font-bold">
+                    Preventive Corporate Investment Shielding You from CNDP Liabilities
+                </p>
+                <p class="text-xs text-slate-400">
+                    مقارنة دقيقة: الخطة المجانية مخصصة للمعاينة السطحية على الشاشة فقط، بينما تمنحك الباقات المدفوعة كامل وثائق الاعتماد وشهادات الـ PDF الرسمية للاحتجاج بها أمام لجان CNDP والمحاكم.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+                <!-- الباقة 1: الفحص التجريبي المجاني (Free Tier) - محذوفة منها الشهادة والـ PDF نهائياً -->
+                <div class="glass-panel p-6 rounded-3xl border border-slate-800 flex flex-col justify-between space-y-5">
+                    <div class="space-y-4">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <span class="text-xs font-bold text-slate-400 block">الباقة التجريبية المفتوحة</span>
+                                <span class="text-[10px] font-mono text-slate-500 block">Free Audit Trial</span>
+                            </div>
+                            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-800 text-slate-300 font-mono">FREE TIER</span>
+                        </div>
+                        <div>
+                            <div class="text-3xl sm:text-4xl font-black text-white font-mono">0 <span class="text-sm font-sans text-slate-400 font-bold">درهم مغربي</span></div>
+                            <p class="text-xs text-slate-400 mt-1">فحص أولي سريع ومؤشرات عامة على الشاشة فقط</p>
+                        </div>
+                        <ul class="text-xs text-slate-300 space-y-2.5 pt-2 border-t border-slate-800">
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-cndp-500 text-[11px]"></i> <span>فحص أولي سريع لملف الكوكيز ومؤشر الامتثال</span></li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-cndp-500 text-[11px]"></i> <span>عرض النتائج والمخاطر التقديرية على الشاشة فقط</span></li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-cndp-500 text-[11px]"></i> <span>كشف عام لموقع الخوادم والاستضافة</span></li>
+                            <li class="flex items-center gap-2 text-rose-400 font-bold"><i class="fa-solid fa-ban text-rose-400 text-[11px]"></i> <span>مخرجات الـ PDF: محذوفة تماماً وغير مشمولة إطلاقاً</span></li>
+                            <li class="flex items-center gap-2 text-rose-400 font-bold"><i class="fa-solid fa-lock text-rose-400 text-[11px]"></i> <span>الشهادة السيادية الرسمية: مقفلة ومحصورة بالباقات المدفوعة</span></li>
+                            <li class="flex items-center gap-2 text-rose-400 font-bold"><i class="fa-solid fa-code text-rose-400 text-[11px]"></i> <span>كود تحصين Nginx السيادي: مقفل ومخصص للباقات المدفوعة</span></li>
+                        </ul>
+                    </div>
+                    <button onclick="executeAudit()" class="btn-interactive w-full py-3 rounded-xl bg-navy-800 hover:bg-navy-750 text-slate-200 text-xs font-black border border-slate-700 flex flex-col items-center justify-center gap-0.5">
+                        <div class="flex items-center gap-2">
+                            <i class="fa-solid fa-bolt"></i>
+                            <span>فحص مجاني فوري (على الشاشة فقط)</span>
+                        </div>
+                        <span class="text-[9px] font-mono text-slate-400 font-normal">Instant On-Screen Scan (No PDF)</span>
+                    </button>
+                </div>
+
+                <!-- الباقة 2: باقة المحترفين والتقرير السيادي (5,000 درهم) -->
+                <div class="glass-gold p-6 rounded-3xl border-2 border-sand-gold relative flex flex-col justify-between space-y-5 shadow-2xl">
+                    <div class="absolute -top-3.5 right-6 bg-gradient-to-r from-sand-gold to-amber-500 text-slate-950 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider shadow-md">
+                        الأكثر طلباً للشركات والمواقع المغربية
+                    </div>
+                    <div class="space-y-4 pt-1">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <span class="text-xs font-bold text-sand-gold block">باقة التقرير والشهادة السيادية</span>
+                                <span class="text-[10px] font-mono text-sand-gold/80 block">Audit Report & Sovereign Cert</span>
+                            </div>
+                            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-sand-gold/20 text-sand-gold border border-sand-gold/40 font-mono">Professional</span>
+                        </div>
+                        <div>
+                            <div class="text-3xl sm:text-4xl font-black text-white font-mono">5,000 <span class="text-sm font-sans text-sand-gold font-bold">درهم مغربي</span></div>
+                            <p class="text-xs text-slate-300 mt-1">تقرير تدقيق هندسي متكامل وشهادة امتثال رسمية موثقة</p>
+                        </div>
+                        <ul class="text-xs text-slate-200 space-y-2.5 pt-2 border-t border-sand-gold/30">
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400 text-[11px]"></i> <strong>فتح فوري وتحميل تقرير التدقيق الشامل بصيغة PDF</strong></li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400 text-[11px]"></i> <strong>إصدار الشهادة السيادية الرسمية بختم Trust Seal ورقم تسلسلي فريد</strong></li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400 text-[11px]"></i> <span>كود تحصين Nginx لترويسات الأمان الصارمة لسد الثغرات</span></li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400 text-[11px]"></i> <span>قالب لافتة كوكيز ممتثلة 100% لمداولة 08-2020</span></li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400 text-[11px]"></i> <span>جلسة استشارة ومتابعة مباشرة عبر الواتساب مع خبير DPO</span></li>
+                        </ul>
+                    </div>
+                    <button onclick="orderViaWhatsApp('باقة التقرير والشهادة السيادية (5,000 درهم)')" class="btn-interactive w-full py-3.5 rounded-xl bg-gradient-to-r from-cndp-500 to-cndp-600 text-slate-950 text-xs font-black flex flex-col items-center justify-center gap-0.5 shadow-xl">
+                        <div class="flex items-center gap-2">
+                            <i class="fa-brands fa-whatsapp text-sm"></i>
+                            <span>طلب الباقة وفتح الشهادة الرسمية (5,000 د.م)</span>
+                        </div>
+                        <span class="text-[9px] font-mono text-slate-950 font-bold">Order Plan & Unlock Official Cert (5,000 MAD)</span>
+                    </button>
+                </div>
+
+                <!-- الباقة 3: الملاءمة الشاملة ومرافقة CNDP (10,000 درهم) -->
+                <div class="glass-panel p-6 rounded-3xl border border-cndp-500/40 flex flex-col justify-between space-y-5">
+                    <div class="space-y-4">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <span class="text-xs font-bold text-cndp-500 block">الملاءمة الشاملة ومرافقة CNDP</span>
+                                <span class="text-[10px] font-mono text-cndp-500/80 block">Enterprise Full CNDP Alignment</span>
+                            </div>
+                            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-cndp-500/20 text-cndp-500 border border-cndp-500/40 font-mono">Enterprise Full</span>
+                        </div>
+                        <div>
+                            <div class="text-3xl sm:text-4xl font-black text-white font-mono">10,000 <span class="text-sm font-sans text-cndp-500 font-bold">درهم مغربي</span></div>
+                            <p class="text-xs text-slate-400 mt-1">تجهيز ملفات التصريح القانوني والمرافقة الشاملة 365 يوماً</p>
+                        </div>
+                        <ul class="text-xs text-slate-300 space-y-2.5 pt-2 border-t border-slate-800">
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-cndp-500 text-[11px]"></i> <strong>كل مزايا باقة 5,000 درهم + تصدير غير محدود للشهادات والتقارير</strong></li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-cndp-500 text-[11px]"></i> <strong>تجهيز ملفات التصريح المسبق D-1 والإذن المسبق A-1 لـ CNDP</strong></li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-cndp-500 text-[11px]"></i> <span>صياغة سياسة الخصوصية الرسمية والشروط العامة</span></li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-cndp-500 text-[11px]"></i> <span>خطة الطوارئ والاستجابة لحوادث الخرق خلال 72 ساعة</span></li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-cndp-500 text-[11px]"></i> <span>مرافقة مخصصة مع خبير DPO معتمد حتى نيل وصل الإيداع القانوني</span></li>
+                        </ul>
+                    </div>
+                    <button onclick="orderViaWhatsApp('باقة الملاءمة الشاملة ومرافقة CNDP (10,000 درهم)')" class="btn-interactive w-full py-3 rounded-xl bg-navy-800 hover:bg-navy-750 text-cndp-500 text-xs font-black border border-cndp-500/40 flex flex-col items-center justify-center gap-0.5">
+                        <div class="flex items-center gap-2">
+                            <i class="fa-solid fa-crown text-sand-gold"></i>
+                            <span>حجز المرافقة الكاملة والشهادات (10,000 د.م)</span>
+                        </div>
+                        <span class="text-[9px] font-mono text-cndp-400 font-normal">Book Full Escort & Unlimited Certs (10,000 MAD)</span>
+                    </button>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- 7. المستشار القانوني السيادي الذكي (Sovereign AI Legal Advisor) -->
         <section id="advisor-sec" class="glass-panel p-6 sm:p-8 rounded-3xl border border-purple-500/30 space-y-5">
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-4">
                 <div>
@@ -593,7 +784,6 @@ SOVEREIGN_UI_HTML = """<!DOCTYPE html>
                     <span class="text-xs text-purple-300 font-bold bg-purple-950/40 border border-purple-800/40 px-3 py-1 rounded-xl block sm:inline">
                         محدث بجميع مواد القانون 08-09 ومداولة 08-2020
                     </span>
-                    <span class="text-[10px] font-mono text-slate-400 block mt-0.5">Updated with Law 08-09 & Deliberation 08-2020</span>
                 </div>
             </div>
 
@@ -624,7 +814,6 @@ SOVEREIGN_UI_HTML = """<!DOCTYPE html>
                         <i class="fa-solid fa-gavel"></i>
                         <span>مصفوفة العقوبات والغرامات بموجب القانون المغربي 08-09:</span>
                     </div>
-                    <span class="block text-[10px] font-mono text-purple-300/80 mr-6">Statutory Penalties & Fines Matrix under Moroccan Law 08-09</span>
                 </div>
                 <ul class="text-slate-300 space-y-1.5 text-[11px] leading-relaxed">
                     <li>• <strong>المادة 53:</strong> غرامة من 10,000 إلى 100,000 درهم لإنشاء ملف معالجة دون تصريح مسبق للجنة CNDP.</li>
@@ -633,281 +822,10 @@ SOVEREIGN_UI_HTML = """<!DOCTYPE html>
                 </ul>
             </div>
         </section>
-
-        <!-- 6. مؤشرات الامتثال ومصفوفة العقوبات (Compliance Score & Table) -->
-        <section class="glass-panel p-6 sm:p-8 rounded-3xl border border-cndp-500/30 space-y-6">
-            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
-                <div>
-                    <span class="text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full bg-cndp-500/15 text-cndp-500 border border-cndp-500/30">
-                        COMPLIANCE SCORE • المطابقة التنظيمية
-                    </span>
-                    <h3 class="text-xl sm:text-2xl font-black text-white mt-1">مؤشرات الامتثال ومصفوفة العقوبات</h3>
-                    <p class="text-xs font-mono text-cndp-500 font-bold mt-0.5">Compliance Benchmarks & Penalties Exposure Matrix</p>
-                </div>
-                <!-- زر تصدير التقرير والشهادة: مقفل افتراضياً للخطة المجانية -->
-                <button id="score-cert-btn" onclick="openCertModal()" class="btn-interactive px-4 py-2 rounded-xl bg-navy-800 hover:bg-navy-750 text-sand-gold border border-sand-gold/40 text-xs font-black flex flex-col items-center justify-center shadow-lg shrink-0 transition text-center">
-                    <div class="flex items-center gap-1.5">
-                        <i class="fa-solid fa-lock text-rose-400"></i>
-                        <span>تقرير PDF والشهادة (حصرية للمدفوع 🔒)</span>
-                    </div>
-                    <span class="text-[9px] font-mono text-sand-gold/70 font-normal mt-0.5">Audit PDF & Certificate (Paid Tier Only)</span>
-                </button>
-            </div>
-
-            <!-- المؤشر الدائري وتقدير المخاطر -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
-                <!-- الدائرة المركزية للدرجة -->
-                <div class="flex flex-col items-center justify-center p-6 rounded-3xl bg-navy-950 border border-slate-800 text-center">
-                    <div class="relative w-36 h-36 flex items-center justify-center">
-                        <svg class="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
-                            <path class="text-slate-800" stroke-width="3.5" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
-                            <path id="score-circle-path" class="text-cndp-500 transition-all duration-1000" stroke-dasharray="75, 100" stroke-width="3.5" stroke-linecap="round" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
-                        </svg>
-                        <div class="absolute flex flex-col items-center">
-                            <span id="score-val" class="text-3xl font-black text-white font-mono">75%</span>
-                            <span class="text-[10px] text-slate-400 font-bold">درجة الامتثال على الشاشة</span>
-                            <span class="text-[9px] font-mono text-slate-500">Live Compliance Score</span>
-                        </div>
-                    </div>
-                    <span id="status-tag" class="mt-3 px-3 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                        Partiellement Conforme
-                    </span>
-                </div>
-
-                <!-- إجمالي الغرامات المحتملة -->
-                <div class="p-6 rounded-3xl bg-navy-950 border border-rose-500/30 flex flex-col justify-between h-full">
-                    <div class="space-y-1">
-                        <div>
-                            <span class="text-xs text-rose-400 font-bold flex items-center gap-1.5">
-                                <i class="fa-solid fa-triangle-exclamation"></i>
-                                <span>إجمالي الغرامات المحتملة (قانون 08-09):</span>
-                            </span>
-                            <span class="block text-[10px] font-mono text-rose-400/80 mr-4">Estimated Exposure Fines</span>
-                        </div>
-                        <div id="fines-badge" class="text-3xl sm:text-4xl font-black text-rose-400 font-mono pt-1">
-                            150,000 MAD
-                        </div>
-                        <p class="text-[11px] text-slate-400 pt-1">
-                            مجموع المخالفات المرصودة لمداولة 08-2020 وغياب التصريح المسبق بخوادم أجنبية.
-                        </p>
-                    </div>
-                    <button onclick="orderViaWhatsApp('باقة تقرير التدقيق لتفادي 150,000 درهم غرامات')" class="mt-4 btn-interactive w-full py-2.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 text-xs font-black flex flex-col items-center justify-center">
-                        <div class="flex items-center gap-1.5">
-                            <i class="fa-solid fa-shield-virus"></i>
-                            <span>تأمين المؤسسة من الغرامات</span>
-                        </div>
-                        <span class="text-[9px] font-mono font-normal opacity-85">Shield from Exposure</span>
-                    </button>
-                </div>
-
-                <!-- السيادة السحابية وموقع الاستضافة -->
-                <div class="p-6 rounded-3xl bg-navy-950 border border-slate-800 flex flex-col justify-between h-full">
-                    <div class="space-y-2">
-                        <div>
-                            <span class="text-xs text-sand-gold font-bold flex items-center gap-1.5">
-                                <i class="fa-solid fa-server"></i>
-                                <span>السيادة السحابية وموقع الخوادم:</span>
-                            </span>
-                            <span class="block text-[10px] font-mono text-sand-gold/80 mr-4">Cloud Sovereignty & Datacenter Location</span>
-                        </div>
-                        <div id="sovereign-status" class="text-base font-bold text-white flex items-center gap-2">
-                            <span>الدار البيضاء (المغرب 🇲🇦)</span>
-                        </div>
-                        <p class="text-[11px] text-slate-400 leading-relaxed">
-                            المادة 43 و 44 تلزم بالحصول على ترخيص مسبق من CNDP لنقل المعطيات خارج المغرب.
-                        </p>
-                    </div>
-                    <div class="text-[11px] text-emerald-400 font-mono bg-navy-900 p-2.5 rounded-xl border border-emerald-900/40">
-                        ✓ متوافق مع الميثاق الوطني للسيادة الرقمية
-                    </div>
-                </div>
-            </div>
-
-            <!-- جدول تفصيل المخالفات والغرامات المرصودة -->
-            <div class="overflow-x-auto rounded-2xl border border-slate-800">
-                <table class="w-full text-right text-xs">
-                    <thead class="bg-navy-900 text-slate-400 border-b border-slate-800 font-bold">
-                        <tr>
-                            <th class="py-3 px-4">
-                                <span>السند القانوني</span>
-                                <span class="block text-[9px] font-mono text-slate-500 font-normal">Legal Reference</span>
-                            </th>
-                            <th class="py-3 px-4">
-                                <span>المخالفة المرصودة</span>
-                                <span class="block text-[9px] font-mono text-slate-500 font-normal">Detected Infraction</span>
-                            </th>
-                            <th class="py-3 px-4">
-                                <span>العقوبة المنصوص عليها</span>
-                                <span class="block text-[9px] font-mono text-slate-500 font-normal">Statutory Penalty</span>
-                            </th>
-                        </tr>
-                    </thead>
-                    <tbody id="fines-table-body" class="divide-y divide-slate-800/60 bg-navy-950/60">
-                        <tr>
-                            <td class="py-3 px-4 font-mono font-bold text-cndp-500">المادة 53</td>
-                            <td class="py-3 px-4 text-slate-300">انعدام التصريح المسبق للجنة الوطنية CNDP (وصل الإيداع D-1)</td>
-                            <td class="py-3 px-4 font-mono text-rose-400 font-bold">10,000 إلى 100,000 درهم</td>
-                        </tr>
-                        <tr>
-                            <td class="py-3 px-4 font-mono font-bold text-cndp-500">المداولة 08-2020</td>
-                            <td class="py-3 px-4 text-slate-300">تتبع مسبق وغياب خيار رفض متكافئ في لافتة الكوكيز</td>
-                            <td class="py-3 px-4 font-mono text-rose-400 font-bold">إنذار وسحب رخصة المعالجة</td>
-                        </tr>
-                        <tr>
-                            <td class="py-3 px-4 font-mono font-bold text-cndp-500">المادتان 43 و 63</td>
-                            <td class="py-3 px-4 text-slate-300">نقل وتخزين معطيات شخصية بخوادم أجنبية دون ترخيص مسبق</td>
-                            <td class="py-3 px-4 font-mono text-rose-400 font-bold">20,000 إلى 200,000 درهم + حبس</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </section><!-- 7. باقات الأسعار والاستثمار المؤسسي (Institutional Pricing Grid) -->
-        <section id="pricing-sec" class="space-y-6">
-            <div class="text-center max-w-2xl mx-auto space-y-2">
-                <span class="text-xs font-mono font-bold px-3 py-1 rounded-full bg-sand-gold/15 text-sand-gold border border-sand-gold/30">
-                    TRANSPARENT INSTITUTIONAL PRICING • الباقات الرسمية المعتمدة
-                </span>
-                <h2 class="text-2xl sm:text-3xl font-black text-white">
-                    استثمار وقائي يحمي مؤسستك من غرامات ومسؤوليات CNDP
-                </h2>
-                <p class="text-xs font-mono text-sand-gold font-bold">
-                    Preventive Corporate Investment Shielding You from CNDP Liabilities
-                </p>
-                <p class="text-xs text-slate-400">
-                    مقارنة دقيقة: الخطة المجانية مخصصة للمعاينة السطحية على الشاشة فقط، بينما تمنحك الباقات المدفوعة كامل وثائق الاعتماد وشهادات الـ PDF الرسمية للاحتجاج بها أمام لجان CNDP والمحاكم.
-                </p>
-                <p class="text-[11px] font-mono text-slate-500">
-                    Accurate Comparison: Free tier provides superficial on-screen preview; paid packages unlock formal CNDP audit certificates and certified PDF documentation.
-                </p>
-            </div>
-
-            <!-- بطاقات الباقات الثلاث الصريحة -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-
-                <!-- الباقة 1: الفحص التجريبي المجاني (Free Tier) - محذوفة منها الشهادة والـ PDF نهائياً -->
-                <div class="glass-panel p-6 rounded-3xl border border-slate-800 flex flex-col justify-between space-y-5">
-                    <div class="space-y-4">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <span class="text-xs font-bold text-slate-400 block">الباقة التجريبية المفتوحة</span>
-                                <span class="text-[10px] font-mono text-slate-500 block">Free Audit Trial</span>
-                            </div>
-                            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-800 text-slate-300 font-mono">FREE TIER</span>
-                        </div>
-                        <div>
-                            <div class="text-3xl sm:text-4xl font-black text-white font-mono">0 <span class="text-sm font-sans text-slate-400 font-bold">درهم مغربي</span></div>
-                            <p class="text-xs text-slate-400 mt-1">فحص أولي سريع ومؤشرات عامة على الشاشة فقط</p>
-                            <p class="text-[10px] font-mono text-slate-500">Fast initial scan & general on-screen metrics only</p>
-                        </div>
-                        <ul class="text-xs text-slate-300 space-y-2.5 pt-2 border-t border-slate-800">
-                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-cndp-500 text-[11px]"></i> <span>فحص أولي سريع لملف الكوكيز ومؤشر الامتثال</span></li>
-                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-cndp-500 text-[11px]"></i> <span>عرض النتائج والمخاطر التقديرية على الشاشة فقط</span></li>
-                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-cndp-500 text-[11px]"></i> <span>كشف عام لموقع الخوادم والاستضافة</span></li>
-                            <li class="flex items-center gap-2 text-rose-400 font-bold"><i class="fa-solid fa-ban text-rose-400 text-[11px]"></i> <span>مخرجات الـ PDF: محذوفة تماماً وغير مشمولة إطلاقاً</span></li>
-                            <li class="flex items-center gap-2 text-rose-400 font-bold"><i class="fa-solid fa-lock text-rose-400 text-[11px]"></i> <span>الشهادة السيادية الرسمية: مقفلة ومحصورة بالباقات المدفوعة</span></li>
-                            <li class="flex items-center gap-2 text-rose-400 font-bold"><i class="fa-solid fa-code text-rose-400 text-[11px]"></i> <span>كود تحصين Nginx السيادي: مقفل ومخصص للباقات المدفوعة</span></li>
-                            <li class="flex items-center gap-2 text-slate-500"><i class="fa-solid fa-xmark text-slate-600 text-[11px]"></i> <span>غير معترف به كإثبات امتثال رسمي لدى CNDP</span></li>
-                        </ul>
-                    </div>
-                    <button onclick="executeAudit()" class="btn-interactive w-full py-3 rounded-xl bg-navy-800 hover:bg-navy-750 text-slate-200 text-xs font-black border border-slate-700 flex flex-col items-center justify-center gap-0.5">
-                        <div class="flex items-center gap-2">
-                            <i class="fa-solid fa-bolt"></i>
-                            <span>فحص مجاني فوري (على الشاشة فقط)</span>
-                        </div>
-                        <span class="text-[9px] font-mono text-slate-400 font-normal">Instant On-Screen Scan (No PDF)</span>
-                    </button>
-                </div>
-
-                <!-- الباقة 2: باقة المحترفين والتقرير السيادي (5,000 درهم) - تشمل فتح الـ PDF والشهادة فورياً -->
-                <div class="glass-gold p-6 rounded-3xl border-2 border-sand-gold relative flex flex-col justify-between space-y-5 shadow-2xl">
-                    <div class="absolute -top-3.5 right-6 bg-gradient-to-r from-sand-gold to-amber-500 text-slate-950 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider shadow-md">
-                        الأكثر طلباً للشركات والمواقع المغربية
-                    </div>
-                    <div class="space-y-4 pt-1">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <span class="text-xs font-bold text-sand-gold block">باقة التقرير والشهادة السيادية</span>
-                                <span class="text-[10px] font-mono text-sand-gold/80 block">Audit Report & Sovereign Cert</span>
-                            </div>
-                            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-sand-gold/20 text-sand-gold border border-sand-gold/40 font-mono">Professional</span>
-                        </div>
-                        <div>
-                            <div class="text-3xl sm:text-4xl font-black text-white font-mono">5,000 <span class="text-sm font-sans text-sand-gold font-bold">درهم مغربي</span></div>
-                            <p class="text-xs text-slate-300 mt-1">تقرير تدقيق هندسي متكامل وشهادة امتثال رسمية موثقة</p>
-                            <p class="text-[10px] font-mono text-sand-gold/70">Certified engineering audit report & legal compliance seal</p>
-                        </div>
-                        <ul class="text-xs text-slate-200 space-y-2.5 pt-2 border-t border-sand-gold/30">
-                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400 text-[11px]"></i> <strong>فتح فوري وتحميل تقرير التدقيق الشامل بصيغة PDF</strong></li>
-                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400 text-[11px]"></i> <strong>إصدار الشهادة السيادية الرسمية بختم Trust Seal ورقم تسلسلي فريد</strong></li>
-                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400 text-[11px]"></i> <span>كود تحصين Nginx لترويسات الأمان الصارمة لسد الثغرات</span></li>
-                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400 text-[11px]"></i> <span>قالب لافتة كوكيز ممتثلة 100% لمداولة 08-2020</span></li>
-                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400 text-[11px]"></i> <span>جلسة استشارة ومتابعة مباشرة عبر الواتساب مع خبير DPO</span></li>
-                        </ul>
-                    </div>
-                    <button onclick="orderViaWhatsApp('باقة التقرير والشهادة السيادية (5,000 درهم)')" class="btn-interactive w-full py-3.5 rounded-xl bg-gradient-to-r from-cndp-500 to-cndp-600 text-slate-950 text-xs font-black flex flex-col items-center justify-center gap-0.5 shadow-xl">
-                        <div class="flex items-center gap-2">
-                            <i class="fa-brands fa-whatsapp text-sm"></i>
-                            <span>طلب الباقة وفتح الشهادة الرسمية (5,000 د.م)</span>
-                        </div>
-                        <span class="text-[9px] font-mono text-slate-950 font-bold">Order Plan & Unlock Official Cert (5,000 MAD)</span>
-                    </button>
-                </div>
-
-                <!-- الباقة 3: الملاءمة الشاملة والمرافقة القانونية (10,000 درهم) -->
-                <div class="glass-panel p-6 rounded-3xl border border-cndp-500/40 flex flex-col justify-between space-y-5">
-                    <div class="space-y-4">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <span class="text-xs font-bold text-cndp-500 block">الملاءمة الشاملة ومرافقة CNDP</span>
-                                <span class="text-[10px] font-mono text-cndp-500/80 block">Enterprise Full CNDP Alignment</span>
-                            </div>
-                            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-cndp-500/20 text-cndp-500 border border-cndp-500/40 font-mono">Enterprise Full</span>
-                        </div>
-                        <div>
-                            <div class="text-3xl sm:text-4xl font-black text-white font-mono">10,000 <span class="text-sm font-sans text-cndp-500 font-bold">درهم مغربي</span></div>
-                            <p class="text-xs text-slate-400 mt-1">تجهيز ملفات التصريح القانوني والمرافقة الشاملة 365 يوماً</p>
-                            <p class="text-[10px] font-mono text-slate-500">CNDP D-1 filing prep & 365-day dedicated legal escort</p>
-                        </div>
-                        <ul class="text-xs text-slate-300 space-y-2.5 pt-2 border-t border-slate-800">
-                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-cndp-500 text-[11px]"></i> <strong>كل مزايا باقة 5,000 درهم + تصدير غير محدود للشهادات والتقارير</strong></li>
-                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-cndp-500 text-[11px]"></i> <strong>تجهيز ملفات التصريح المسبق D-1 والإذن المسبق A-1 لـ CNDP</strong></li>
-                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-cndp-500 text-[11px]"></i> <span>صياغة سياسة الخصوصية الرسمية والشروط العامة</span></li>
-                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-cndp-500 text-[11px]"></i> <span>خطة الطوارئ والاستجابة لحوادث الخرق خلال 72 ساعة</span></li>
-                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-cndp-500 text-[11px]"></i> <span>مرافقة مخصصة مع خبير DPO معتمد حتى نيل وصل الإيداع القانوني</span></li>
-                        </ul>
-                    </div>
-                    <button onclick="orderViaWhatsApp('باقة الملاءمة الشاملة والمرافقة مع CNDP (10,000 درهم)')" class="btn-interactive w-full py-3 rounded-xl bg-navy-800 hover:bg-navy-750 text-cndp-500 text-xs font-black border border-cndp-500/40 flex flex-col items-center justify-center gap-0.5">
-                        <div class="flex items-center gap-2">
-                            <i class="fa-solid fa-crown text-sand-gold"></i>
-                            <span>حجز المرافقة الكاملة والشهادات (10,000 د.م)</span>
-                        </div>
-                        <span class="text-[9px] font-mono text-cndp-400 font-normal">Book Full Escort & Unlimited Certs (10,000 MAD)</span>
-                    </button>
-                </div>
-
-            </div>
-
-            <!-- بطاقة التحويل البنكي والتواصل المباشر مع الخبير طه الستري -->
-            <div class="p-5 rounded-3xl bg-navy-950 border border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs">
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-xl bg-sand-gold/20 border border-sand-gold/40 flex items-center justify-center text-sand-gold text-lg shrink-0">
-                        <i class="fa-solid fa-building-columns"></i>
-                    </div>
-                    <div>
-                        <strong class="text-white block">الدفع عبر التحويل البنكي الوطني المباشر (Virement Bancaire Maroc)</strong>
-                        <span class="block text-[10px] font-mono text-sand-gold/80">Direct Moroccan National Bank Wire Transfer (RIB)</span>
-                        <span class="text-slate-400">يتم إرسال الفاتورة الرسمية وفك قفل شهادة التدقيق وتقرير الـ PDF فور تأكيد العملية.</span>
-                    </div>
-                </div>
-                <div class="flex items-center gap-2 shrink-0">
-                    <a href="https://wa.me/212634424914?text=%D8%A3%D8%B1%D8%BA%D8%A8%20%D9%81%D9%8A%20%D8%A7%D9%84%D8%AD%D8%B5%D9%88%D9%84%20%D8%B9%D9%84%D9%89%20%D8%AA%D9%81%D8%A7%D8%B5%D9%8A%D9%84%20%D8%A7%D9%84%D8%AA%D8%AD%D9%88%D9%8A%D9%84%20%D8%A7%D9%84%D8%A8%D9%86%D9%83%D9%8A%20(RIB)%20%D9%84%D8%AA%D9%81%D8%B9%D9%8A%D9%84%20%D8%A7%D9%84%D8%B4%D9%87%D8%A7%D8%AF%D8%A9%20%D9%88%D8%A7%D9%84%D8%AA%D9%82%D8%B1%D9%8A%D8%B1%20%D8%A7%D9%84%D8%B1%D8%B3%D9%85%D9%8A" target="_blank" class="px-4 py-2 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 font-bold hover:bg-emerald-500/30 transition flex items-center gap-1.5">
-                        <i class="fa-brands fa-whatsapp"></i>
-                        <span>طلب تفاصيل الـ RIB عبر واتساب</span>
-                    </a>
-                </div>
-            </div>
-        </section>
-
+"""# ------------------------------------------------------------------------------
+# واجهة المستخدم المؤسسية الموحدة (Sovereign UI HTML) - الجزء الثاني
+# ------------------------------------------------------------------------------
+SOVEREIGN_UI_HTML_PART2 = """
         <!-- 8. نافذة تحصين وتوليد كود Nginx السيادي (Hardening Generator) - محمي للباقات المدفوعة والمشرف -->
         <section class="glass-panel p-6 sm:p-8 rounded-3xl border border-slate-800 space-y-4 relative overflow-hidden" id="nginx-hardening-sec">
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
@@ -922,7 +840,6 @@ SOVEREIGN_UI_HTML = """<!DOCTYPE html>
                     <p class="text-[11px] font-mono text-emerald-400/90 font-bold mt-0.5">Sovereign Security Headers & Cookie Hardening Directives</p>
                 </div>
                 <div class="flex items-center gap-2">
-                    <!-- زر النسخ: يفتح نافذة الترقية أو ينسخ عند فك القفل -->
                     <button onclick="handleNginxCopyOrUnlock()" id="btn-copy-nginx" class="btn-interactive px-3.5 py-1.5 rounded-xl bg-navy-800 hover:bg-navy-750 text-slate-300 text-xs border border-slate-700 flex items-center gap-1.5 transition shadow-sm">
                         <i id="btn-copy-nginx-icon" class="fa-solid fa-lock text-amber-400"></i>
                         <span id="btn-copy-nginx-text">كود مقفل (حصرية للمدفوع 🔒)</span>
@@ -933,7 +850,6 @@ SOVEREIGN_UI_HTML = """<!DOCTYPE html>
             <!-- الحالة 1: الواجهة المقفلة للزوار في الخطة المجانية -->
             <div id="nginx-locked-view" class="space-y-4">
                 <div class="relative rounded-2xl overflow-hidden border border-amber-500/30 bg-navy-950/90 p-6 text-center space-y-4">
-                    <!-- خلفية كود مشوشة لإظهار القيمة الهندسية خلف القفل -->
                     <div class="absolute inset-0 opacity-15 filter blur-sm pointer-events-none select-none font-mono text-[10px] text-emerald-400 p-4 text-left overflow-hidden" dir="ltr">
                         add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;<br>
                         add_header X-Frame-Options "SAMEORIGIN" always;<br>
@@ -973,7 +889,7 @@ SOVEREIGN_UI_HTML = """<!DOCTYPE html>
                 </div>
             </div>
 
-            <!-- الحالة 2: الواجهة المفتوحة للكود بالكامل (تظهر حصرياً بعد الترقية أو استخدام مفتاح المؤسس) -->
+            <!-- الحالة 2: الواجهة المفتوحة للكود بالكامل -->
             <div id="nginx-unlocked-view" class="space-y-2 hidden">
                 <div class="flex items-center justify-between text-xs px-1 text-emerald-400 font-mono">
                     <span class="flex items-center gap-1.5">
@@ -1168,7 +1084,6 @@ proxy_cookie_flags ~* samesite=strict secure httponly;</code></pre>
 
             <!-- بطاقات البنود الأربعة الصريحة -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <!-- البند 1 -->
                 <div class="p-5 rounded-2xl bg-navy-950/85 border border-slate-800 space-y-2">
                     <div class="flex items-center gap-2.5">
                         <div class="w-8 h-8 rounded-xl bg-cndp-500/15 border border-cndp-500/30 flex items-center justify-center text-cndp-500 text-sm shrink-0">
@@ -1184,7 +1099,6 @@ proxy_cookie_flags ~* samesite=strict secure httponly;</code></pre>
                     </p>
                 </div>
 
-                <!-- البند 2 -->
                 <div class="p-5 rounded-2xl bg-navy-950/85 border border-slate-800 space-y-2">
                     <div class="flex items-center gap-2.5">
                         <div class="w-8 h-8 rounded-xl bg-sand-gold/15 border border-sand-gold/30 flex items-center justify-center text-sand-gold text-sm shrink-0">
@@ -1200,7 +1114,6 @@ proxy_cookie_flags ~* samesite=strict secure httponly;</code></pre>
                     </p>
                 </div>
 
-                <!-- البند 3 -->
                 <div class="p-5 rounded-2xl bg-navy-950/85 border border-slate-800 space-y-2">
                     <div class="flex items-center gap-2.5">
                         <div class="w-8 h-8 rounded-xl bg-rose-500/15 border border-rose-500/30 flex items-center justify-center text-rose-400 text-sm shrink-0">
@@ -1216,7 +1129,6 @@ proxy_cookie_flags ~* samesite=strict secure httponly;</code></pre>
                     </p>
                 </div>
 
-                <!-- البند 4 -->
                 <div class="p-5 rounded-2xl bg-navy-950/85 border border-slate-800 space-y-2">
                     <div class="flex items-center gap-2.5">
                         <div class="w-8 h-8 rounded-xl bg-sky-500/15 border border-sky-500/30 flex items-center justify-center text-sky-400 text-sm shrink-0">
@@ -1344,34 +1256,55 @@ proxy_cookie_flags ~* samesite=strict secure httponly;</code></pre>
     <div id="cert-modal" onclick="handleBackdropClick(event, 'cert-modal')" class="modal-container fixed inset-0 z-50 flex items-center justify-center p-4 bg-navy-950/85 backdrop-blur-md">
         
         <!-- الحاوية 1: واجهة القفل للخطة المجانية (Cert Locked View) -->
-        <div id="cert-locked-view" class="modal-card bg-navy-900 border-2 border-sand-gold/60 rounded-3xl max-w-xl w-full p-6 sm:p-7 space-y-5 shadow-2xl text-right" onclick="event.stopPropagation()">
+        <div id="cert-locked-view" class="modal-card bg-navy-900 border-2 border-rose-500/60 rounded-3xl max-w-xl w-full p-6 sm:p-7 space-y-5 shadow-2xl text-right" onclick="event.stopPropagation()">
             <div class="flex items-center justify-between border-b border-slate-800 pb-3">
                 <div class="flex items-center gap-2">
-                    <div class="w-8 h-8 rounded-xl bg-rose-500/20 text-rose-400 border border-rose-500/40 flex items-center justify-center text-sm">
-                        <i class="fa-solid fa-lock"></i>
-                    </div>
-                    <div>
-                        <h3 class="font-black text-white text-base">مخرجات الـ PDF والشهادة السيادية الرسمية</h3>
-                        <span class="block text-[10px] font-mono text-rose-400 font-bold">Official PDF Export & Sovereign Trust Certificate</span>
-                    </div>
+                    <span id="cert-status-dot" class="w-3 h-3 rounded-full bg-rose-500 animate-pulse"></span>
+                    <h3 class="font-black text-white text-base">مخرجات الـ PDF والشهادة السيادية الرسمية</h3>
+                    <span id="cert-tier-badge" class="text-[10px] font-mono font-bold px-2.5 py-1 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/40 flex items-center gap-1.5 shadow-sm">
+                        <i class="fa-solid fa-lock text-[9px] text-rose-400"></i> <span>🔒 محصن للخطة المدفوعة / Enterprise Locked</span>
+                    </span>
                 </div>
-                <button onclick="closeCertModal()" class="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center text-xs">
-                    <i class="fa-solid fa-xmark"></i>
-                </button>
+                <div class="flex items-center gap-2">
+                    <button id="btn-print-cert-locked" onclick="triggerPrintCertificate()" class="btn-interactive px-3.5 py-2 rounded-xl bg-navy-800 hover:bg-navy-750 text-rose-300 text-xs border border-rose-500/40 flex items-center gap-2 transition shadow-sm font-bold">
+                        <i class="fa-solid fa-lock text-rose-400"></i>
+                        <span>🔒 محصن للخطة المدفوعة / Enterprise Locked</span>
+                    </button>
+                    <button onclick="closeCertModal()" class="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center text-xs">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
             </div>
 
-            <!-- تنبيه القفل الصارم للخطة المجانية -->
-            <div class="p-4 rounded-2xl bg-rose-500/15 border border-rose-500/40 space-y-2">
-                <div class="flex items-center gap-2 font-black text-rose-300 text-xs">
-                    <i class="fa-solid fa-triangle-exclamation"></i>
-                    <div>
-                        <span>غير متاحة في الخطة المجانية (0 درهم)</span>
-                        <span class="block text-[10px] font-mono text-rose-400">Locked on Free Plan (0 MAD)</span>
-                    </div>
+            <!-- تنبيه القفل الصارم للخطة المجانية وغطاء القفل الشامل للشهادة -->
+            <div class="relative rounded-2xl overflow-hidden border-2 border-rose-500/40 bg-navy-950 p-6 text-center space-y-4 shadow-2xl">
+                <div class="absolute inset-0 opacity-15 filter blur-md pointer-events-none select-none p-4 text-center overflow-hidden" dir="rtl">
+                    <div class="text-xl">🇲🇦 🛡️ 🇲🇦</div>
+                    <div class="font-black text-white text-sm">شهادة الامتثال لمعايير السيادة الرقمية</div>
+                    <div class="text-[10px] text-slate-400">ROYAUME DU MAROC • CNDP LAW 08-09</div>
+                    <div class="text-xs text-sand-gold font-mono mt-2">banquepopulaire.ma • Trust Seal Verified</div>
                 </div>
-                <p class="text-[11px] text-slate-300 leading-relaxed">
-                    الخطة المجانية تقتصر حصرياً على فحص النطاق السطحي ومؤشرات الامتثال العامة على الشاشة فقط دون أي مخرجات PDF مجانية. تصدير تقرير التدقيق الشامل والشهادة السيادية المعتمدة بختم Trust Seal مقتصرة حصرياً على الباقات المدفوعة أو بتصريح المشرف العام للمؤسس.
-                </p>
+
+                <div class="relative z-10 max-w-lg mx-auto space-y-3 py-1">
+                    <div class="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-rose-500/25 border border-rose-500/50 text-rose-300 text-xs font-mono font-black shadow-inner">
+                        <i class="fa-solid fa-lock text-rose-400"></i>
+                        <span>🔒 محصن للخطة المدفوعة / Enterprise Locked</span>
+                    </div>
+
+                    <div class="w-12 h-12 rounded-2xl bg-rose-500/20 border-2 border-rose-500/50 flex items-center justify-center text-rose-400 text-xl mx-auto shadow-xl">
+                        <i class="fa-solid fa-file-pdf"></i>
+                    </div>
+
+                    <h4 class="text-base sm:text-lg font-black text-white">
+                        تصدير تقرير PDF والشهادة السيادية الرسمية مقفل ومحصن
+                    </h4>
+                    <p class="text-xs font-mono text-sand-gold font-bold">
+                        Official PDF Audit Report & Sovereign Trust Seal are Reserved Exclusively for Paid Subscribers
+                    </p>
+                    <p class="text-xs text-slate-300 leading-relaxed">
+                        الخطة المجانية تقتصر حصرياً على الفحص السطحي على الشاشة فقط دون أي مخرجات PDF مجانية. تصدير تقرير التدقيق الشامل والشهادة السيادية المعتمدة مقتصرة حصرياً على عملاء <strong>باقة التقرير والشهادة (5,000 د.م)</strong> أو <strong>الملاءمة السنوية الشاملة (10,000 د.م)</strong>، أو باستخدام مفتاح المشرف الخاص بالمؤسس طه الستري.
+                    </p>
+                </div>
             </div>
 
             <!-- خيارات الترقية للباقات المدفوعة -->
@@ -1481,7 +1414,7 @@ proxy_cookie_flags ~* samesite=strict secure httponly;</code></pre>
 
                 <div class="pt-2 flex justify-between items-end border-t border-sand-gold/20 text-[10px]">
                     <div class="text-right text-slate-400">
-                        <span class="block">تاريخ التحقق والإصدار: <span id="cert-issue-date" class="font-mono text-white">2026-09-05</span></span>
+                        <span class="block">تاريخ التحقق والإصدار: <span id="cert-issue-date" class="font-mono text-white">2026-09-06</span></span>
                         <span class="block">الختم الرقمي: <strong class="text-emerald-400">Trust Seal Verified ✓</strong></span>
                     </div>
                     <div class="text-center">
@@ -1503,14 +1436,13 @@ proxy_cookie_flags ~* samesite=strict secure httponly;</code></pre>
 
     <!-- دوال الجافاسكريبت التشغيلية -->
     <script>
-        // حالة الفحص الحالية ومفتاح الإدارة وتصريح التصدير
         const ADMIN_BYPASS_KEY = "taha_soverify_2026";
         let lastAuditData = {
             domain: "banquepopulaire.ma",
             score: 75,
             status: "امتثال معتمد",
             potential_fines: 150000,
-            date: "2026-09-05"
+            date: "2026-09-06"
         };
         let isExportUnlocked = false;
 
@@ -1554,12 +1486,31 @@ proxy_cookie_flags ~* samesite=strict secure httponly;</code></pre>
 
                 if (progressBar) progressBar.style.width = '100%';
 
-                // تحديث مؤشرات الواجهة الحية
-                document.getElementById('score-val').textContent = data.score + '%';
-                document.getElementById('status-tag').textContent = data.status;
-                document.getElementById('sovereign-status').textContent = data.server_location;
+                const resScore = document.getElementById('res-score');
+                const resStatus = document.getElementById('res-status-label');
+                const resDomain = document.getElementById('res-domain-label');
+                const resServer = document.getElementById('res-server-loc');
+                const resFines = document.getElementById('res-fines-total');
 
-                // ربط نتائج الفحص الفعلية ببيانات الشهادة الرسمية
+                if (resScore) resScore.textContent = data.score;
+                if (resStatus) resStatus.textContent = data.status;
+                if (resDomain) resDomain.textContent = data.domain;
+                if (resServer) resServer.textContent = data.server_location;
+                if (resFines) resFines.textContent = `${Number(data.potential_fines).toLocaleString()} MAD`;
+
+                const finesList = document.getElementById('res-fines-list');
+                if (finesList && data.fines_items) {
+                    finesList.innerHTML = data.fines_items.map(item => `
+                        <div class="p-3 rounded-2xl bg-navy-950 border border-rose-500/20 flex items-start justify-between gap-3 text-xs">
+                            <div>
+                                <span class="font-mono text-[10px] px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 font-bold">${item.article}</span>
+                                <p class="text-white font-bold mt-1">${item.violation}</p>
+                            </div>
+                            <span class="font-mono text-rose-400 font-bold shrink-0 text-xs">${item.amount}</span>
+                        </div>
+                    `).join('');
+                }
+
                 lastAuditData = {
                     domain: data.domain || domain,
                     score: data.score || 75,
@@ -1568,43 +1519,11 @@ proxy_cookie_flags ~* samesite=strict secure httponly;</code></pre>
                     date: data.date || new Date().toISOString().split('T')[0]
                 };
                 updateCertDetailsUI();
-
-                const circle = document.getElementById('score-circle-path');
-                if (circle) {
-                    circle.setAttribute('stroke-dasharray', `${data.score}, 100`);
-                }
-
-                const finesBadge = document.getElementById('fines-badge');
-                if (finesBadge) {
-                    finesBadge.textContent = Number(data.potential_fines).toLocaleString() + ' MAD';
-                }
-
-                // تحديث جدول الغرامات
-                const tbody = document.getElementById('fines-table-body');
-                if (tbody) {
-                    if (data.fines_items && data.fines_items.length > 0) {
-                        tbody.innerHTML = data.fines_items.map(item => `
-                            <tr>
-                                <td class="py-3 px-4 font-mono font-bold text-cndp-500">${item.article}</td>
-                                <td class="py-3 px-4 text-slate-300">${item.violation}</td>
-                                <td class="py-3 px-4 font-mono text-rose-400 font-bold">${item.amount}</td>
-                            </tr>
-                        `).join('');
-                    } else {
-                        tbody.innerHTML = `
-                            <tr>
-                                <td class="py-3 px-4 font-mono text-emerald-400 font-bold">امتثال تام</td>
-                                <td class="py-3 px-4 text-slate-300">لم يتم رصد مخالفات موجبة لغرامات فورية</td>
-                                <td class="py-3 px-4 font-mono text-emerald-400 font-bold">0 درهم</td>
-                            </tr>
-                        `;
-                    }
-                }
             } catch (err) {
                 console.error(err);
             } finally {
                 btn.disabled = false;
-                btn.innerHTML = '<i class="fa-solid fa-shield-halved"></i><span>بدء الفحص والتدقيق</span>';
+                btn.innerHTML = '<div class="flex items-center gap-2"><i class="fa-solid fa-shield-halved"></i><span>بدء الفحص والتدقيق</span></div><span class="text-[9px] font-mono font-bold text-slate-900">Run Sovereign Audit</span>';
             }
         }
 
@@ -1778,18 +1697,18 @@ proxy_cookie_flags ~* samesite=strict secure httponly;`;
                     headerBtn.className = 'btn-interactive bg-gradient-to-r from-cndp-500 to-cndp-600 text-slate-950 px-4 py-2 rounded-xl text-xs font-black flex items-center gap-2 shadow-lg';
                     headerBtn.innerHTML = '<i class="fa-solid fa-certificate"></i><span>الشهادة الرسمية (PDF) ✓</span>';
                 } else {
-                    headerBtn.className = 'btn-interactive bg-navy-800 hover:bg-navy-750 text-sand-gold border border-sand-gold/50 px-4 py-2 rounded-xl text-xs font-black flex items-center gap-2 shadow-lg';
-                    headerBtn.innerHTML = '<i class="fa-solid fa-lock text-amber-400"></i><span>الشهادة والتقرير (باقة مدفوعة 🔒)</span>';
+                    headerBtn.className = 'btn-interactive bg-navy-800 hover:bg-navy-750 text-sand-gold border border-sand-gold/50 px-4 py-2 rounded-xl text-xs font-black flex flex-col items-center justify-center shadow-lg transition text-center';
+                    headerBtn.innerHTML = '<div class="flex items-center gap-1.5"><i class="fa-solid fa-lock text-rose-400"></i><span>الشهادة والتقرير (حصرية للمدفوع 🔒)</span></div><span class="text-[9px] font-mono font-bold px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/40 mt-1">🔒 محصن للخطة المدفوعة / Enterprise Locked</span>';
                 }
             }
 
             if (scoreBtn) {
                 if (isUnlocked) {
-                    scoreBtn.className = 'btn-interactive px-4 py-2 rounded-xl bg-cndp-500 hover:bg-cndp-600 text-slate-950 text-xs font-black flex items-center gap-2 shadow-lg shrink-0';
-                    scoreBtn.innerHTML = '<i class="fa-solid fa-file-pdf"></i><span>تصدير الشهادة الرسمية (PDF)</span>';
+                    scoreBtn.className = 'btn-interactive px-4 py-2.5 rounded-xl bg-cndp-500 hover:bg-cndp-600 text-slate-950 text-xs font-black flex items-center gap-2 shadow-lg shrink-0';
+                    scoreBtn.innerHTML = '<i class="fa-solid fa-file-pdf"></i><span>تصدير تقرير PDF الرسمي المعتمد ✓</span>';
                 } else {
-                    scoreBtn.className = 'btn-interactive px-4 py-2 rounded-xl bg-navy-800 hover:bg-navy-750 text-sand-gold border border-sand-gold/40 text-xs font-black flex items-center gap-2 shadow-lg shrink-0';
-                    scoreBtn.innerHTML = '<i class="fa-solid fa-lock text-rose-400"></i><span>تقرير PDF والشهادة (حصرية للمدفوع 🔒)</span>';
+                    scoreBtn.className = 'btn-interactive px-4 py-2.5 rounded-xl bg-navy-800 hover:bg-navy-750 text-sand-gold border border-sand-gold/50 text-xs font-black flex flex-col items-center justify-center shadow-lg shrink-0 transition text-center';
+                    scoreBtn.innerHTML = '<div class="flex items-center gap-1.5"><i class="fa-solid fa-lock text-rose-400"></i><span>تصدير تقرير PDF الرسمي (حصرية للمدفوع 🔒)</span></div><span class="text-[9px] font-mono font-bold px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/40 mt-1">🔒 محصن للخطة المدفوعة / Enterprise Locked</span>';
                 }
             }
 
@@ -1805,7 +1724,6 @@ proxy_cookie_flags ~* samesite=strict secure httponly;`;
             if (finesEl) finesEl.textContent = `${Number(lastAuditData.potential_fines).toLocaleString()} MAD`;
             if (dateEl) dateEl.textContent = lastAuditData.date || new Date().toISOString().split('T')[0];
             
-            // حساب رقم تسلسلي بناءً على النطاق
             if (serialEl) {
                 let hash = 0;
                 const d = lastAuditData.domain;
@@ -1847,7 +1765,6 @@ proxy_cookie_flags ~* samesite=strict secure httponly;`;
             }
         }
 
-        // وظائف التحكم في شريط رؤية المؤسس (Sovereign Ticker Controls)
         let isTickerPaused = false;
         function toggleTickerPlay() {
             const track = document.getElementById('founder-ticker-track');
@@ -1948,17 +1865,17 @@ proxy_cookie_flags ~* samesite=strict secure httponly;`;
 """
 
 # ------------------------------------------------------------------------------
-# نقاط النهاية والمسارات البرمجية (Flask Routes)
+# مسارات تطبيق Flask الموحدة (Routes & APIs)
 # ------------------------------------------------------------------------------
 @app.route("/", methods=["GET"])
 def index():
-    return SOVEREIGN_UI_HTML
+    return SOVEREIGN_UI_HTML_PART1 + SOVEREIGN_UI_HTML_PART2
 
 @app.route("/api/audit", methods=["POST"])
 def api_audit():
     data = request.get_json(silent=True) or request.form or {}
-    domain = data.get("domain", "banquepopulaire.ma")
-    framework = data.get("framework", "cndp")
+    domain = sanitize_domain(data.get("domain", "banquepopulaire.ma"))
+    framework = sanitize_input(data.get("framework", "cndp"), 32)
     return jsonify(audit_target(domain, framework))
 
 @app.route("/api/order", methods=["POST"])
@@ -2045,10 +1962,9 @@ def api_legal_disclaimer():
                 "content": "يتحمل صاحب النطاق والمؤسسة بصفتها المسؤول عن المعالجة واجبات التصريح والإذن المسبق عملاً بالقانون 08-09 ومداولة CNDP 08-2020."
             }
         ],
-        "updated_at": "2026-09-05"
+        "updated_at": "2026-09-06"
     })
 
-# نقطة التحقق من مفتاح المشرف الخاص وتصدير التقارير الرسمية
 @app.route("/api/verify-admin", methods=["POST"])
 def api_verify_admin():
     data = request.get_json(silent=True) or request.form or {}
@@ -2086,7 +2002,6 @@ def api_export_report():
             "pricing_url": "#pricing-sec"
         }), 402
 
-    # توليد بيانات التقرير الفعلي المعتمد
     audit_data = audit_target(domain, "cndp")
     return jsonify({
         "status": "success",
@@ -2099,7 +2014,6 @@ def api_export_report():
         "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     })
 
-# نقطة تحميل ملف app.py المباشر
 @app.route("/app.py", methods=["GET"])
 @app.route("/api/download-python", methods=["GET"])
 def download_app_py():
