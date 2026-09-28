@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShieldCheck, Lock, History, Cookie, Scale, AlertTriangle, Code, User, Languages, Download, FileText, BookOpen, Bot, Sparkles, Globe, FileClock, Atom } from 'lucide-react';
+import { ShieldCheck, Lock, History, Cookie, Scale, AlertTriangle, Code, User, Languages, Download, FileText, BookOpen, Bot, Sparkles, Globe, FileClock, Atom, FileSpreadsheet, UserCheck } from 'lucide-react';
 import { UserAccount } from '../types';
 
 interface NavbarProps {
@@ -29,6 +29,9 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   const navItems = [
     { id: 'audit', labelEn: 'Compliance Audit', labelAr: 'فحص الامتثال', icon: ShieldCheck },
+    { id: 'registry', labelEn: 'CNDP Registry', labelAr: 'سجل المعالجة', icon: FileSpreadsheet, isHighlight: true },
+    { id: 'dpia', labelEn: 'DPIA Simulator', labelAr: 'تقييم الأثر (AIPD)', icon: Scale, isHighlight: true },
+    { id: 'rights', labelEn: 'Subject Rights', labelAr: 'حقوق المعنيين', icon: UserCheck },
     { id: 'quantum', labelEn: 'Post-Quantum Shield', labelAr: 'درع الكم PQC', icon: Atom, isHighlight: true },
     { id: 'updates', labelEn: 'Regulatory Updates', labelAr: 'مستجدات CNDP', icon: Globe },
     { id: 'chatbot', labelEn: 'Free DPO Advisor', labelAr: 'المستشار القانوني (مجاني)', icon: Bot, isHighlight: true },

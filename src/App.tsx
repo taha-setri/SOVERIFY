@@ -21,6 +21,9 @@ import { DpoEmailAlertModal } from './components/DpoEmailAlertModal';
 import { RegulatoryUpdatesTab } from './components/RegulatoryUpdatesTab';
 import { AuditTrailTab } from './components/AuditTrailTab';
 import { PostQuantumDefenseCenter } from './components/PostQuantumDefenseCenter';
+import { ProcessingRegistryTab } from './components/ProcessingRegistryTab';
+import { DpiaSimulatorTab } from './components/DpiaSimulatorTab';
+import { SubjectRightsTab } from './components/SubjectRightsTab';
 import { CndpDeclarationModal } from './components/CndpDeclarationModal';
 import { SovereignMapModal } from './components/SovereignMapModal';
 import { CookieSimulatorModal } from './components/CookieSimulatorModal';
@@ -489,6 +492,40 @@ export default function App() {
               onOpenVisionScreen={() => setActiveTab('vision')} 
             />
           </div>
+        )}
+
+        {/* Tab: CNDP Processing Activities Register (سجل معالجة البيانات الشخصية) */}
+        {activeTab === 'registry' && (
+          <ProcessingRegistryTab
+            lang={lang}
+            onConsultDpo={(topic) => {
+              if (topic) setDpoConsultationTopic(topic);
+              setActiveTab('chatbot');
+            }}
+          />
+        )}
+
+        {/* Tab: DPIA / AIPD Risk Assessment Simulator (محاكي تقييم الأثر والمخاطر) */}
+        {activeTab === 'dpia' && (
+          <DpiaSimulatorTab
+            lang={lang}
+            onConsultDpo={(topic) => {
+              if (topic) setDpoConsultationTopic(topic);
+              setActiveTab('chatbot');
+            }}
+            onNavigateToArticles={handleNavigateToArticle}
+          />
+        )}
+
+        {/* Tab: Data Subject Rights Response Suite (ممارسة حقوق المعنيين بالأمر) */}
+        {activeTab === 'rights' && (
+          <SubjectRightsTab
+            lang={lang}
+            onConsultDpo={(topic) => {
+              if (topic) setDpoConsultationTopic(topic);
+              setActiveTab('chatbot');
+            }}
+          />
         )}
 
         {/* Tab: Regulatory Updates (CNDP & Moroccan Privacy Law via Google Search) */}

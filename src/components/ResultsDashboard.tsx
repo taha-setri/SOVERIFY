@@ -27,6 +27,7 @@ import {
 import { ComplianceScoreTooltip } from './ComplianceScoreTooltip';
 import { NginxHardeningSection } from './NginxHardeningSection';
 import { EnterpriseLeadCard } from './EnterpriseLeadCard';
+import { ComplianceRiskMatrix } from './ComplianceRiskMatrix';
 import { CndpDeclarationModal } from './CndpDeclarationModal';
 import { SovereignMapModal } from './SovereignMapModal';
 import { CookieSimulatorModal } from './CookieSimulatorModal';
@@ -214,6 +215,33 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
                 <Download className="h-4 w-4" />
                 <span>{isAr ? 'تحميل التقرير كملف PDF' : 'Download Report as PDF'}</span>
               </button>
+              <button
+                onClick={() => {
+                  const headers = ['Category', 'Article', 'Title (AR)', 'Title (EN)', 'Severity', 'Penalty Estimate', 'Recommendation'];
+                  const rows = (report.gaps || []).map(g => [
+                    `"${g.category}"`,
+                    `"${g.article}"`,
+                    `"${g.titleAr.replace(/"/g, '""')}"`,
+                    `"${g.title.replace(/"/g, '""')}"`,
+                    g.severity,
+                    `"${g.penaltyEstimate || 'N/A'}"`,
+                    `"${g.recommendation.replace(/"/g, '""')}"`
+                  ]);
+                  const csv = '\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+                  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `soverify_gaps_${report.domain}_${new Date().toISOString().substring(0, 10)}.csv`;
+                  document.body.appendChild(a);
+                  a.click();
+                  document.body.removeChild(a);
+                }}
+                className="flex items-center justify-center gap-2 rounded-xl border border-teal-500/40 bg-teal-950/60 px-4 py-2 text-xs font-bold text-teal-300 hover:text-white hover:bg-teal-900/60 transition cursor-pointer"
+              >
+                <Download className="h-4 w-4 text-teal-400" />
+                <span>{isAr ? 'تصدير الثغرات كملف CSV / Excel' : 'Export Gaps to CSV'}</span>
+              </button>
 
               {onOpenCndpDeclaration && (
                 <button
@@ -376,6 +404,14 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
           <p className="text-[11px] text-slate-500">Loi 08-09 Art. 43/44</p>
         </div>
       </div>
+
+      {/* Compliance Risk Matrix Component (Maps gaps by severity and Law 08-09 articles) */}
+      <ComplianceRiskMatrix
+        gaps={report.gaps}
+        lang={lang}
+        onViewArticle={onViewArticle}
+        onConsultDpo={(topic) => onConsultDpo && onConsultDpo()}
+      />
 
       {/* Main Section: Gaps & Warnings */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
