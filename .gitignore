@@ -1,0 +1,13 @@
+node_modules/
+build/
+dist/
+coverage/
+.DS_Store
+*.log
+*.db
+audit_logs.json
+leads.json
+__pycache__/
+*.pyc
+.env*
+!.env.example
