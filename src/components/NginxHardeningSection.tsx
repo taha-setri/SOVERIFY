@@ -32,7 +32,6 @@ export const NginxHardeningSection: React.FC<NginxHardeningSectionProps> = ({
   const isAr = lang === 'ar';
   const cleanDomain = domain ? domain.replace(/^https?:\/\//, '').split('/')[0] : 'banquepopulaire.ma';
 
-  // By default, show the fully generated sovereign code directly without blocking the user
   const [isUnlocked, setIsUnlocked] = useState<boolean>(true);
   const [showKeyModal, setShowKeyModal] = useState<boolean>(false);
   const [adminKeyInput, setAdminKeyInput] = useState<string>('');
@@ -115,11 +114,6 @@ proxy_cookie_flags ~* samesite=strict secure httponly;
 server_tokens off;`;
 
   const handleCopyNginx = () => {
-    if (!isUnlocked && !isAuthenticated) {
-      setShowKeyModal(true);
-      return;
-    }
-
     navigator.clipboard.writeText(nginxConfigCode);
     setCopied(true);
     setTimeout(() => setCopied(false), 2500);
@@ -127,23 +121,18 @@ server_tokens off;`;
 
   const handleUnlockWithKey = (e: React.FormEvent) => {
     e.preventDefault();
-    const trimmed = adminKeyInput.trim();
-    if (trimmed === founderBypassKey || trimmed.toLowerCase() === 'taha' || trimmed.toLowerCase() === 'cndp2026' || trimmed.toLowerCase() === 'enterprise') {
-      setIsUnlocked(true);
-      setShowKeyModal(false);
-      setKeyError(null);
-    } else {
-      setKeyError(isAr ? 'مفتاح المشرف غير صحيح. يُرجى مراجعة المؤسس أو التواصل عبر الواتساب.' : 'Invalid passkey. Please verify with founder or contact via WhatsApp.');
-    }
+    setIsUnlocked(true);
+    setShowKeyModal(false);
+    setKeyError(null);
   };
 
   const whatsappUrl = `https://wa.me/212634424914?text=${encodeURIComponent(
     isAr 
-      ? `السلام عليكم، أود طلب باقة تقرير التدقيق وكود تحصين Nginx السيادي (5,000 درهم) لموقع ${cleanDomain}.`
-      : `Hello, I would like to order the Audit Report & Sovereign Nginx Hardening configuration (5,000 MAD) for ${cleanDomain}.`
+      ? `السلام عليكم، أود استشارة بخصوص كود تحصين Nginx السيادي لموقع ${cleanDomain}.`
+      : `Hello, I would like consultation regarding Sovereign Nginx Hardening for ${cleanDomain}.`
   )}`;
 
-  const effectiveUnlocked = isUnlocked || isAuthenticated;
+  const effectiveUnlocked = true;
 
   return (
     <div id="nginx-hardening-sec" className="rounded-2xl sm:rounded-3xl border border-slate-800 bg-[#070c18] p-6 sm:p-8 space-y-5 relative overflow-hidden shadow-2xl">
@@ -151,32 +140,15 @@ server_tokens off;`;
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800/80 pb-4">
         <div>
           <div className="flex flex-wrap items-center gap-2">
-            <span
-              className={`w-3 h-3 rounded-full ${
-                effectiveUnlocked ? 'bg-emerald-400' : 'bg-amber-400 animate-pulse'
-              }`}
-            />
+            <span className="w-3 h-3 rounded-full bg-emerald-400" />
             <h3 className="text-lg sm:text-xl font-black text-white tracking-tight">
               {isAr ? 'كود تحصين ترويسات الأمان السيادي (Nginx Hardening)' : 'Sovereign Security Headers & Nginx Hardening'}
             </h3>
-            <span
-              className={`text-[11px] font-mono font-bold px-2.5 py-0.5 rounded-full border ${
-                effectiveUnlocked
-                  ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
-                  : 'bg-amber-500/15 text-amber-300 border-amber-500/30'
-              }`}
-            >
-              {effectiveUnlocked ? (
-                <span className="flex items-center gap-1">
-                  <Unlock className="w-3 h-3 text-emerald-400" />
-                  <span>{isAr ? 'مرخص للمؤسسة ✓' : 'Enterprise Licensed ✓'}</span>
-                </span>
-              ) : (
-                <span className="flex items-center gap-1">
-                  <Lock className="w-3 h-3 text-amber-400" />
-                  <span>{isAr ? 'حصرية للباقات المدفوعة 🔒' : 'Paid Tier Exclusive 🔒'}</span>
-                </span>
-              )}
+            <span className="text-[11px] font-mono font-bold px-2.5 py-0.5 rounded-full border bg-emerald-500/15 text-emerald-300 border-emerald-500/30">
+              <span className="flex items-center gap-1">
+                <Unlock className="w-3 h-3 text-emerald-400" />
+                <span>{isAr ? 'كود التحصين مفتوح ومتاح بالكامل ✓' : 'Sovereign Hardening Unlocked ✓'}</span>
+              </span>
             </span>
           </div>
           <p className="text-xs font-mono text-emerald-400/90 font-medium mt-1">
@@ -186,117 +158,30 @@ server_tokens off;`;
           </p>
         </div>
 
-        {/* Copy / Unlock Button */}
+        {/* Copy Button */}
         <div className="flex items-center gap-2 shrink-0">
           <button
             onClick={handleCopyNginx}
             id="btn-copy-nginx"
-            className={`px-4 py-2 rounded-xl text-xs font-bold font-mono flex items-center gap-2 transition shadow-md cursor-pointer ${
-              effectiveUnlocked
-                ? 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-emerald-500/20'
-                : 'bg-slate-800/90 hover:bg-slate-700 text-amber-300 border border-amber-500/40'
-            }`}
+            className="px-4 py-2 rounded-xl text-xs font-bold font-mono flex items-center gap-2 transition shadow-md cursor-pointer bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-emerald-500/20"
           >
-            {effectiveUnlocked ? (
-              copied ? (
-                <>
-                  <Check className="w-4 h-4 text-slate-950" />
-                  <span>{isAr ? 'تم نسخ إعدادات Nginx!' : 'Nginx Config Copied!'}</span>
-                </>
-              ) : (
-                <>
-                  <Copy className="w-4 h-4" />
-                  <span>{isAr ? 'نسخ إعدادات Nginx' : 'Copy Nginx Config'}</span>
-                </>
-              )
+            {copied ? (
+              <>
+                <Check className="w-4 h-4 text-slate-950" />
+                <span>{isAr ? 'تم نسخ إعدادات Nginx!' : 'Nginx Config Copied!'}</span>
+              </>
             ) : (
               <>
-                <Lock className="w-4 h-4 text-amber-400" />
-                <span>{isAr ? 'كود مقفل (حصرية للمدفوع 🔒)' : 'Config Locked (Paid Tier 🔒)'}</span>
+                <Copy className="w-4 h-4" />
+                <span>{isAr ? 'نسخ إعدادات Nginx' : 'Copy Nginx Config'}</span>
               </>
             )}
           </button>
         </div>
       </div>
 
-      {/* STATE 1: LOCKED VIEW (Paywall & Restriction Overlay) */}
-      {!effectiveUnlocked ? (
-        <div id="nginx-locked-view" className="space-y-4">
-          <div className="relative rounded-2xl overflow-hidden border border-amber-500/30 bg-[#050914] p-6 sm:p-10 text-center space-y-4 shadow-xl">
-            {/* Blurred background snippet simulating the raw technical configuration */}
-            <div
-              className="absolute inset-0 opacity-15 filter blur-[3px] pointer-events-none select-none font-mono text-[11px] text-emerald-300 p-6 text-left overflow-hidden"
-              dir="ltr"
-            >
-              add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;<br />
-              add_header X-Frame-Options "SAMEORIGIN" always;<br />
-              add_header X-Content-Type-Options "nosniff" always;<br />
-              add_header Referrer-Policy "strict-origin-when-cross-origin" always;<br />
-              add_header Content-Security-Policy "default-src 'self'...";<br />
-              proxy_cookie_flags ~* samesite=strict secure httponly;<br />
-              server_tokens off;
-            </div>
-
-            {/* Foreground Content */}
-            <div className="relative z-10 max-w-2xl mx-auto space-y-3.5 py-2">
-              <div className="w-14 h-14 rounded-2xl bg-amber-500/15 border border-amber-500/40 flex items-center justify-center text-amber-400 mx-auto shadow-lg">
-                <Shield className="w-7 h-7" />
-              </div>
-
-              <h4 className="text-lg sm:text-xl font-black text-white tracking-tight">
-                {isAr
-                  ? 'قواعد تحصين Nginx والترويسات السيادية مخصصة للمشتركين فقط'
-                  : 'Nginx Sovereign Hardening Directives are Reserved Exclusively for Paid Subscribers'}
-              </h4>
-
-              <p className="text-xs font-mono text-amber-300/90 font-semibold tracking-wide">
-                Nginx Sovereign Hardening Directives are Reserved Exclusively for Paid Subscribers
-              </p>
-
-              <p className="text-xs sm:text-sm text-slate-300 leading-relaxed max-w-xl mx-auto">
-                {isAr ? (
-                  <>
-                    لحماية النطاق من هجمات الحقن وسرقة ملفات الكوكيز ومطابقة المداولة 08-2020، فإن كود التحصين الهندسي المتقدم Nginx وإعدادات الحماية الصارمة متاحة حصرياً لعملاء{' '}
-                    <strong className="text-emerald-400">باقة تقرير التدقيق (5,000 د.م)</strong> أو{' '}
-                    <strong className="text-emerald-400">الملاءمة السنوية الشاملة (10,000 د.م)</strong>، أو باستخدام مفتاح المشرف الخاص بالمؤسس.
-                  </>
-                ) : (
-                  <>
-                    To protect against code injection, cross-origin cookie hijacking, and guarantee full compliance with Law 08-09 Article 23 and CNDP Deliberation 08-2020, production-ready Nginx hardening configs are reserved for{' '}
-                    <strong className="text-emerald-400">Audit Report Tier (5,000 MAD)</strong> and Enterprise Subscribers, or via Founder Passkey.
-                  </>
-                )}
-              </p>
-
-              {/* Action Buttons */}
-              <div className="flex flex-wrap items-center justify-center gap-3 pt-3">
-                <a
-                  href={whatsappUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="px-5 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-xs flex items-center gap-2 shadow-lg shadow-emerald-500/20 transition cursor-pointer"
-                >
-                  <PhoneCall className="w-4 h-4" />
-                  <div className="text-right">
-                    <span>{isAr ? 'طلب الباقة وفك قفل الكود فوراً (5,000 د.م)' : 'Unlock Hardening Config (5,000 MAD)'}</span>
-                    <span className="block text-[10px] font-mono font-normal opacity-90">WhatsApp Direct Verification</span>
-                  </div>
-                </a>
-
-                <button
-                  onClick={() => setShowKeyModal(true)}
-                  className="px-4 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-amber-300 border border-amber-500/40 font-bold text-xs flex items-center gap-2 transition cursor-pointer"
-                >
-                  <Key className="w-4 h-4 text-amber-400" />
-                  <span>{isAr ? 'إدخال مفتاح المشرف (Admin Key)' : 'Enter Admin Passkey'}</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : (
-        /* STATE 2: UNLOCKED VIEW (Full Hardened Config & Implementation Guide) */
-        <div id="nginx-unlocked-view" className="space-y-4 animate-fadeIn">
+      {/* UNLOCKED VIEW (Full Hardened Config & Implementation Guide) */}
+      <div id="nginx-unlocked-view" className="space-y-4 animate-fadeIn">
           <div className="flex items-center justify-between text-xs px-1 text-emerald-400 font-mono">
             <span className="flex items-center gap-1.5 font-bold">
               <CheckCircle2 className="w-4 h-4 text-emerald-400" />
@@ -377,7 +262,6 @@ server_tokens off;`;
             </div>
           </div>
         </div>
-      )}
 
       {/* Admin Passkey Modal */}
       {showKeyModal && (

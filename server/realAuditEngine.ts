@@ -39,14 +39,17 @@ interface RealInspectionData {
 const MOROCCAN_ISP_KEYWORDS = [
   'maroc telecom',
   'iam',
-  'national telecom',
-  'wana',
+  'maroc connect',
+  'wana corporate',
+  'inwi',
   'orange maroc',
   'medasys',
   'casablanca',
   'rabat',
   'morocco',
-  'ma',
+  'mtds',
+  'genious',
+  'nindohost',
   'as6713',
   'as36903',
   'as36925',
@@ -346,34 +349,71 @@ export async function performRealDomainAudit(targetInput: string): Promise<Audit
   if (htmlBody) {
     const lower = htmlBody.toLowerCase();
 
-    // Check for CNDP references
-    const cndpMatch = htmlBody.match(/(?:CNDP|D-W-\d{2,5}\/\d{2,4}|D-E-\d{2,5}\/\d{2,4}|القانون رقم 08\.09|Loi\s+08-?09|الظهير الشريف 1\.09\.15)/i);
+    // Check for CNDP references & receipts (supports both Loi 09-08 and 08-09 notations, CNDP receipts)
+    const cndpMatch = htmlBody.match(/(?:CNDP|D-W-\d{1,5}\/\d{2,4}|D-E-\d{1,5}\/\d{2,4}|A-S-\d{1,5}\/\d{2,4}|D-CE-\d{1,5}\/\d{2,4}|A-E-\d{1,5}\/\d{2,4}|القانون\s+رقم\s+0[89][-.]0[89]|Loi\s+0[89][-.\/]0[89]|الظهير\s+الشريف\s+1[-.]09[-.]15|اللجنة\s+الوطنية\s+لمراقبة\s+حماية\s+المعطيات)/i);
     if (cndpMatch) {
       data.hasCndpReceipt = true;
       data.cndpReceiptText = cndpMatch[0];
     }
 
-    // Check for Privacy Notice link
+    // Check for Privacy Notice link / href
+    const privacyLinkMatch = htmlBody.match(/<a[^>]+href=["']([^"']*(?:confidentialit|privacy|donnees-personnelles|mentions-legales|donnees_personnelles)[^"']*)["'][^>]*>/i);
     const privacyRegex = /(?:politique.*confidentialit|privacy.*policy|mentions.*l[eé]gales|donn[eé]es.*personnelles|charte.*confidentialit|حماية.*المعطيات|سياسة.*الخصوصية)/i;
-    data.hasPrivacyPolicy = privacyRegex.test(lower);
+    data.hasPrivacyPolicy = privacyRegex.test(lower) || !!privacyLinkMatch;
+
+    if (privacyLinkMatch && privacyLinkMatch[1]) {
+      let pUrl = privacyLinkMatch[1].trim();
+      if (pUrl.startsWith('/')) {
+        pUrl = `https://${domain}${pUrl}`;
+      } else if (!pUrl.startsWith('http')) {
+        pUrl = `https://${domain}/${pUrl}`;
+      }
+      data.privacyPolicyUrl = pUrl;
+    }
+
+    // If CNDP reference was not found on the homepage, but we discovered a privacy policy link, fetch and scan the privacy policy page directly!
+    if (!data.hasCndpReceipt && data.privacyPolicyUrl) {
+      try {
+        const privResp = await fetch(data.privacyPolicyUrl, {
+          redirect: 'follow',
+          signal: AbortSignal.timeout(3500),
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Soverify-CNDP-Auditor/2.0 (Morocco Law 08-09 Compliance Scanner)'
+          }
+        });
+        if (privResp.ok) {
+          const privText = await privResp.text();
+          const privCndpMatch = privText.match(/(?:CNDP|D-W-\d{1,5}\/\d{2,4}|D-E-\d{1,5}\/\d{2,4}|A-S-\d{1,5}\/\d{2,4}|D-CE-\d{1,5}\/\d{2,4}|A-E-\d{1,5}\/\d{2,4}|القانون\s+رقم\s+0[89][-.]0[89]|Loi\s+0[89][-.\/]0[89]|الظهير\s+الشريف\s+1[-.]09[-.]15|اللجنة\s+الوطنية\s+لمراقبة\s+حماية\s+المعطيات)/i);
+          if (privCndpMatch) {
+            data.hasCndpReceipt = true;
+            data.cndpReceiptText = privCndpMatch[0];
+          }
+        }
+      } catch {
+        // Silently continue if privacy sub-page fetch times out
+      }
+    }
 
     // Check for Cookie Consent Banner / CMP vendors
     if (lower.includes('didomi')) {
       data.hasConsentBanner = true;
-      data.consentVendor = 'Didomi CMP';
+      data.consentVendor = 'Didomi CMP (Conforme CNDP 08-2020)';
     } else if (lower.includes('onetrust') || lower.includes('optanon')) {
       data.hasConsentBanner = true;
-      data.consentVendor = 'OneTrust CMP';
+      data.consentVendor = 'OneTrust CMP Gate';
     } else if (lower.includes('axeptio')) {
       data.hasConsentBanner = true;
-      data.consentVendor = 'Axeptio Consent';
+      data.consentVendor = 'Axeptio Privacy Gate';
     } else if (lower.includes('cookiebot')) {
       data.hasConsentBanner = true;
       data.consentVendor = 'Cookiebot CMP';
     } else if (lower.includes('tarteaucitron')) {
       data.hasConsentBanner = true;
-      data.consentVendor = 'Tarteaucitron.js';
-    } else if (lower.includes('cookie') && (lower.includes('consent') || lower.includes('banner') || lower.includes('modal') || lower.includes('قبول'))) {
+      data.consentVendor = 'Tarteaucitron.js Sovereign';
+    } else if (lower.includes('complianz')) {
+      data.hasConsentBanner = true;
+      data.consentVendor = 'Complianz Privacy Suite';
+    } else if (lower.includes('cookie') && (lower.includes('consent') || lower.includes('banner') || lower.includes('modal') || lower.includes('قبول') || lower.includes('رفض'))) {
       data.hasConsentBanner = true;
       data.consentVendor = 'Custom Cookie Consent Banner';
     }

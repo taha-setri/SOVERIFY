@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { AuditReport, ComplianceGap, ComplianceWarning } from '../types';
 import { 
   AlertTriangle, 
@@ -22,15 +22,30 @@ import {
   FileClock,
   Printer,
   Fingerprint,
-  FileText
+  FileText,
+  FileSpreadsheet,
+  Award,
+  Bell,
+  FileCode2,
+  Sparkles,
+  Layers,
+  UserCheck,
+  Coins
 } from 'lucide-react';
 import { ComplianceScoreTooltip } from './ComplianceScoreTooltip';
 import { NginxHardeningSection } from './NginxHardeningSection';
 import { EnterpriseLeadCard } from './EnterpriseLeadCard';
-import { ComplianceRiskMatrix } from './ComplianceRiskMatrix';
 import { CndpDeclarationModal } from './CndpDeclarationModal';
 import { SovereignMapModal } from './SovereignMapModal';
 import { CookieSimulatorModal } from './CookieSimulatorModal';
+import { ComplianceTrendChart } from './ComplianceTrendChart';
+import { ComplianceHeatmap } from './ComplianceHeatmap';
+import { DomainScoreSparkline } from './DomainScoreSparkline';
+import { OfficialCertificateModal } from './OfficialCertificateModal';
+import { PenaltyCalculatorModal } from './PenaltyCalculatorModal';
+import { DsarPortalModal } from './DsarPortalModal';
+import { exportAuditToCsv } from '../utils/csvExporter';
+import { ScanHistoryItem } from '../types';
 
 interface ResultsDashboardProps {
   report: AuditReport;
@@ -46,6 +61,11 @@ interface ResultsDashboardProps {
   onOpenCndpDeclaration?: () => void;
   onOpenSovereignMap?: () => void;
   onOpenCookieSimulator?: () => void;
+  onOpenRopaRegistry?: () => void;
+  onOpenDpiaAssessment?: () => void;
+  onOpenTrustSeal?: () => void;
+  onOpenContinuousAudit?: () => void;
+  history?: ScanHistoryItem[];
 }
 
 export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
@@ -61,9 +81,84 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
   onViewAuditTrail,
   onOpenCndpDeclaration,
   onOpenSovereignMap,
-  onOpenCookieSimulator
+  onOpenCookieSimulator,
+  onOpenRopaRegistry,
+  onOpenDpiaAssessment,
+  onOpenTrustSeal,
+  onOpenContinuousAudit,
+  history = []
 }) => {
   const isAr = lang === 'ar';
+  const [isCertificateOpen, setIsCertificateOpen] = useState(false);
+  const [isPenaltyCalcOpen, setIsPenaltyCalcOpen] = useState(false);
+  const [isDsarPortalOpen, setIsDsarPortalOpen] = useState(false);
+
+  const handleExportCsv = () => {
+    const headers = isAr
+      ? ['الفئة', 'المادة القانونية', 'البند / الاختبار', 'الدرجة والخطورة', 'الخصم', 'التوصية والإجراء التصحيحي', 'الحالة']
+      : ['Category', 'Legal Article', 'Audit Test', 'Severity', 'Deduction', 'Remediation', 'Status'];
+
+    const rows: string[][] = [];
+
+    // Gaps
+    report.gaps.forEach(g => {
+      rows.push([
+        `"${g.category}"`,
+        `"${g.article}"`,
+        `"${isAr ? g.titleAr : g.title}"`,
+        `"${g.severity}"`,
+        `-${g.deduction}`,
+        `"${g.recommendation.replace(/"/g, '""')}"`,
+        `"${isAr ? 'مخالفة حرجة' : 'Critical Gap'}"`
+      ]);
+    });
+
+    // Warnings
+    report.warnings.forEach(w => {
+      rows.push([
+        `"${w.category}"`,
+        `"${w.article}"`,
+        `"${isAr ? w.titleAr : w.title}"`,
+        `"${w.severity}"`,
+        `-${w.deduction}`,
+        `"${w.recommendation.replace(/"/g, '""')}"`,
+        `"${isAr ? 'تحذير' : 'Warning'}"`
+      ]);
+    });
+
+    // Passed tests
+    report.passed.forEach(p => {
+      rows.push([
+        `"Compliance Passed"`,
+        `"${p.article}"`,
+        `"${isAr ? p.titleAr : p.title}"`,
+        `"PASS"`,
+        `0`,
+        `"${p.detail.replace(/"/g, '""')}"`,
+        `"${isAr ? 'مطابق' : 'Passed'}"`
+      ]);
+    });
+
+    const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `Soverify_Audit_Ledger_${report.domain}_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleExportJson = () => {
+    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(report, null, 2));
+    const link = document.createElement('a');
+    link.setAttribute('href', dataStr);
+    link.setAttribute('download', `Soverify_Raw_Ledger_${report.domain}_${new Date().toISOString().slice(0, 10)}.json`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   const getArticleIdFromRef = (ref: string): string => {
     const r = ref.toLowerCase();
@@ -202,6 +297,17 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
               </div>
             </div>
 
+            {/* Historical Score Sparkline Trend Chart for Audited Domain */}
+            <div className="shrink-0">
+              <DomainScoreSparkline
+                history={history}
+                currentDomain={report.domain || report.target}
+                currentScore={report.score}
+                currentDate={report.timestamp}
+                lang={lang}
+              />
+            </div>
+
             {/* Action buttons */}
             <div className="flex flex-col gap-2 w-full sm:w-auto no-print">
               <button
@@ -218,32 +324,41 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
                 <Download className="h-4 w-4" />
                 <span>{isAr ? 'تحميل التقرير كملف PDF' : 'Download Report as PDF'}</span>
               </button>
+
+              {/* Official Law 08/09 Compliance Certificate */}
               <button
-                onClick={() => {
-                  const headers = ['Category', 'Article', 'Title (AR)', 'Title (EN)', 'Severity', 'Penalty Estimate', 'Recommendation'];
-                  const rows = (report.gaps || []).map(g => [
-                    `"${g.category}"`,
-                    `"${g.article}"`,
-                    `"${g.titleAr.replace(/"/g, '""')}"`,
-                    `"${g.title.replace(/"/g, '""')}"`,
-                    g.severity,
-                    `"${g.penaltyEstimate || 'N/A'}"`,
-                    `"${g.recommendation.replace(/"/g, '""')}"`
-                  ]);
-                  const csv = '\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
-                  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-                  const url = URL.createObjectURL(blob);
-                  const a = document.createElement('a');
-                  a.href = url;
-                  a.download = `soverify_gaps_${report.domain}_${new Date().toISOString().substring(0, 10)}.csv`;
-                  document.body.appendChild(a);
-                  a.click();
-                  document.body.removeChild(a);
-                }}
-                className="flex items-center justify-center gap-2 rounded-xl border border-teal-500/40 bg-teal-950/60 px-4 py-2 text-xs font-bold text-teal-300 hover:text-white hover:bg-teal-900/60 transition cursor-pointer"
+                onClick={() => setIsCertificateOpen(true)}
+                className="flex items-center justify-center gap-2 rounded-xl border border-emerald-500/50 bg-gradient-to-r from-emerald-950/80 via-teal-950/80 to-slate-950 px-4 py-2.5 text-xs font-bold text-emerald-300 hover:text-white hover:border-emerald-400 hover:from-emerald-900 transition shadow-md shadow-emerald-950/40 cursor-pointer"
               >
-                <Download className="h-4 w-4 text-teal-400" />
-                <span>{isAr ? 'تصدير الثغرات كملف CSV / Excel' : 'Export Gaps to CSV'}</span>
+                <Award className="h-4 w-4 text-emerald-400" />
+                <span>{isAr ? '📜 شهادة المطابقة الرقمية (CNDP)' : '📜 Official Compliance Certificate'}</span>
+              </button>
+
+              {/* Law 08/09 Penalty & Financial Risk Calculator */}
+              <button
+                onClick={() => setIsPenaltyCalcOpen(true)}
+                className="flex items-center justify-center gap-2 rounded-xl border border-rose-500/50 bg-gradient-to-r from-rose-950/80 via-red-950/80 to-slate-950 px-4 py-2.5 text-xs font-bold text-rose-300 hover:text-white hover:border-rose-400 hover:from-rose-900 transition shadow-md shadow-rose-950/40 cursor-pointer"
+              >
+                <Scale className="h-4 w-4 text-rose-400" />
+                <span>{isAr ? '⚖️ حاسبة المخاطر والغرامات (MAD)' : '⚖️ Law 08/09 Penalty Calculator'}</span>
+              </button>
+
+              {/* Citizen Rights Portal (DSAR) Generator */}
+              <button
+                onClick={() => setIsDsarPortalOpen(true)}
+                className="flex items-center justify-center gap-2 rounded-xl border border-teal-500/50 bg-gradient-to-r from-teal-950/80 to-slate-950 px-4 py-2.5 text-xs font-bold text-teal-300 hover:text-white hover:border-teal-400 transition cursor-pointer"
+              >
+                <UserCheck className="h-4 w-4 text-teal-400" />
+                <span>{isAr ? '👤 بوابة ممارسة حقوق الأفراد (DSAR)' : '👤 Citizen Rights Portal (DSAR)'}</span>
+              </button>
+
+              {/* Full Audit CSV / Excel Exporter */}
+              <button
+                onClick={() => exportAuditToCsv(report)}
+                className="flex items-center justify-center gap-2 rounded-xl border border-slate-700 bg-slate-800/90 px-4 py-2.5 text-xs font-bold text-slate-200 hover:text-white hover:border-slate-500 hover:bg-slate-700 transition cursor-pointer"
+              >
+                <FileSpreadsheet className="h-4 w-4 text-emerald-400" />
+                <span>{isAr ? '📊 تصدير البيانات (Excel / CSV)' : '📊 Export Audit Data (CSV)'}</span>
               </button>
 
               {onOpenCndpDeclaration && (
@@ -408,12 +523,202 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
         </div>
       </div>
 
-      {/* Compliance Risk Matrix Component (Maps gaps by severity and Law 08-09 articles) */}
-      <ComplianceRiskMatrix
-        gaps={report.gaps}
+      {/* Executive RegTech & Institutional Sovereignty Suite */}
+      <div className="rounded-2xl border border-slate-800 bg-slate-900/90 p-5 sm:p-6 backdrop-blur shadow-2xl space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/80 pb-3">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+              <Layers className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="text-sm sm:text-base font-bold text-white font-mono flex items-center gap-2">
+                <span>{isAr ? 'الحقيبة السيادية لمسؤول حماية المعطيات (DPO & Institutional RegTech Suite)' : 'DPO Sovereign & Regulatory Operations Suite'}</span>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800">
+                  Loi 08-09
+                </span>
+              </h3>
+              <p className="text-xs text-slate-400">
+                {isAr ? 'أدوات التشغيل النظامية، السجلات القانونية، وخواتم الثقة المعتمدة للمؤسسة' : 'Statutory registers, impact assessments, trust seals, and auditing ledgers'}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleExportCsv}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition cursor-pointer"
+              title={isAr ? 'تصدير كشف التدقيق بصيغة Excel / CSV' : 'Export Excel / CSV'}
+            >
+              <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-400" />
+              <span>{isAr ? 'تصدير Excel/CSV' : 'Export CSV'}</span>
+            </button>
+            <button
+              onClick={handleExportJson}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition cursor-pointer"
+              title={isAr ? 'تصدير السجل الكامل بصيغة JSON' : 'Export Raw JSON'}
+            >
+              <FileCode2 className="h-3.5 w-3.5 text-sky-400" />
+              <span>JSON</span>
+            </button>
+          </div>
+        </div>
+
+        {/* 6 Grid Tool Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+          {/* Card 1: CNDP Declaration */}
+          <div
+            onClick={onOpenCndpDeclaration}
+            className="p-4 rounded-xl border border-slate-800 bg-slate-950/70 hover:border-emerald-500/50 hover:bg-slate-950 transition cursor-pointer group space-y-2"
+          >
+            <div className="flex items-center justify-between">
+              <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 group-hover:bg-emerald-500/20">
+                <FileText className="h-4 w-4" />
+              </div>
+              <span className="text-[10px] font-mono text-emerald-400 bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-800">
+                Art. 52/53
+              </span>
+            </div>
+            <div>
+              <h4 className="text-xs font-bold text-white group-hover:text-emerald-300 transition">
+                {isAr ? 'ملف التصريح المسبق (CNDP)' : 'CNDP Declaration Dossier'}
+              </h4>
+              <p className="text-[11px] text-slate-400 mt-0.5 leading-relaxed">
+                {isAr ? 'توليد ملف إداري رسمي كامل لتفادي غرامات المادة 53 (100,000 درهم).' : 'Generate formal statutory notification dossier for CNDP filing.'}
+              </p>
+            </div>
+          </div>
+
+          {/* Card 2: RoPA Register */}
+          <div
+            onClick={onOpenRopaRegistry}
+            className="p-4 rounded-xl border border-slate-800 bg-slate-950/70 hover:border-teal-500/50 hover:bg-slate-950 transition cursor-pointer group space-y-2"
+          >
+            <div className="flex items-center justify-between">
+              <div className="p-2 rounded-lg bg-teal-500/10 text-teal-400 border border-teal-500/20 group-hover:bg-teal-500/20">
+                <FileSpreadsheet className="h-4 w-4" />
+              </div>
+              <span className="text-[10px] font-mono text-teal-400 bg-teal-950/80 px-2 py-0.5 rounded border border-teal-800">
+                Art. 23 RoPA
+              </span>
+            </div>
+            <div>
+              <h4 className="text-xs font-bold text-white group-hover:text-teal-300 transition">
+                {isAr ? 'سجل أنشطة المعالجة الإلزامي' : 'Statutory RoPA Register'}
+              </h4>
+              <p className="text-[11px] text-slate-400 mt-0.5 leading-relaxed">
+                {isAr ? 'توثيق فئات المعطيات، الغايات، ومدد التقادم لتقديمه لمفتشي CNDP.' : 'Maintain mandatory record of processing activities under Article 23.'}
+              </p>
+            </div>
+          </div>
+
+          {/* Card 3: DPIA / AIPD */}
+          <div
+            onClick={onOpenDpiaAssessment}
+            className="p-4 rounded-xl border border-slate-800 bg-slate-950/70 hover:border-purple-500/50 hover:bg-slate-950 transition cursor-pointer group space-y-2"
+          >
+            <div className="flex items-center justify-between">
+              <div className="p-2 rounded-lg bg-purple-500/10 text-purple-400 border border-purple-500/20 group-hover:bg-purple-500/20">
+                <Scale className="h-4 w-4" />
+              </div>
+              <span className="text-[10px] font-mono text-purple-400 bg-purple-950/80 px-2 py-0.5 rounded border border-purple-800">
+                Art. 12 AIPD
+              </span>
+            </div>
+            <div>
+              <h4 className="text-xs font-bold text-white group-hover:text-purple-300 transition">
+                {isAr ? 'تقييم أثر حماية المعطيات (DPIA)' : 'Data Protection Impact (DPIA)'}
+              </h4>
+              <p className="text-[11px] text-slate-400 mt-0.5 leading-relaxed">
+                {isAr ? 'مصفوفة تحليل المخاطر للمشاريع ذات الحساسية العالية والترخيص المسبق.' : 'Risk assessment matrix for sensitive, biometric, or high-risk data.'}
+              </p>
+            </div>
+          </div>
+
+          {/* Card 4: Trust Seal Badge */}
+          <div
+            onClick={onOpenTrustSeal}
+            className="p-4 rounded-xl border border-slate-800 bg-slate-950/70 hover:border-amber-500/50 hover:bg-slate-950 transition cursor-pointer group space-y-2"
+          >
+            <div className="flex items-center justify-between">
+              <div className="p-2 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/20 group-hover:bg-amber-500/20">
+                <Award className="h-4 w-4" />
+              </div>
+              <span className="text-[10px] font-mono text-amber-400 bg-amber-950/80 px-2 py-0.5 rounded border border-amber-800">
+                Trust Seal
+              </span>
+            </div>
+            <div>
+              <h4 className="text-xs font-bold text-white group-hover:text-amber-300 transition">
+                {isAr ? 'خاتم الثقة والاعتماد السيادي' : 'Sovereign Trust Seal Widget'}
+              </h4>
+              <p className="text-[11px] text-slate-400 mt-0.5 leading-relaxed">
+                {isAr ? 'شارة برمجية وتفاعلية توضع في أسفل موقعك مع فحص التحقق الحي.' : 'Embeddable verification badge for website footer with live validation.'}
+              </p>
+            </div>
+          </div>
+
+          {/* Card 5: Continuous Audit Sentinel */}
+          <div
+            onClick={onOpenContinuousAudit}
+            className="p-4 rounded-xl border border-slate-800 bg-slate-950/70 hover:border-sky-500/50 hover:bg-slate-950 transition cursor-pointer group space-y-2"
+          >
+            <div className="flex items-center justify-between">
+              <div className="p-2 rounded-lg bg-sky-500/10 text-sky-400 border border-sky-500/20 group-hover:bg-sky-500/20">
+                <Bell className="h-4 w-4" />
+              </div>
+              <span className="text-[10px] font-mono text-sky-400 bg-sky-950/80 px-2 py-0.5 rounded border border-sky-800">
+                Sentinel
+              </span>
+            </div>
+            <div>
+              <h4 className="text-xs font-bold text-white group-hover:text-sky-300 transition">
+                {isAr ? 'المراقبة الدورية ورصد الانحراف' : 'Continuous Drift Sentinel'}
+              </h4>
+              <p className="text-[11px] text-slate-400 mt-0.5 leading-relaxed">
+                {isAr ? 'جدولة فحص دوري آلي وتنبيه فوري عند رصد كوكيز أو نقل غير مصرح.' : 'Automated scheduled scans with alert triggers on unexpected changes.'}
+              </p>
+            </div>
+          </div>
+
+          {/* Card 6: Sovereign Geolocation Map */}
+          <div
+            onClick={onOpenSovereignMap}
+            className="p-4 rounded-xl border border-slate-800 bg-slate-950/70 hover:border-emerald-500/50 hover:bg-slate-950 transition cursor-pointer group space-y-2"
+          >
+            <div className="flex items-center justify-between">
+              <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 group-hover:bg-emerald-500/20">
+                <Server className="h-4 w-4" />
+              </div>
+              <span className="text-[10px] font-mono text-emerald-400 bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-800">
+                Art. 43/44
+              </span>
+            </div>
+            <div>
+              <h4 className="text-xs font-bold text-white group-hover:text-emerald-300 transition">
+                {isAr ? 'خريطة التوطين والسيادة الرقمية' : 'Sovereign Residency Map'}
+              </h4>
+              <p className="text-[11px] text-slate-400 mt-0.5 leading-relaxed">
+                {isAr ? 'تتبع مسار البيانات جغرافياً وإثبات التوطين داخل مراكز البيانات المغربية.' : 'Trace server physical geolocation and national border residency.'}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Historical Score Changes & Compliance Evolution Trend Chart */}
+      <ComplianceTrendChart
+        targetDomain={report.domain || report.target}
+        currentReport={report}
+        history={history}
         lang={lang}
-        onViewArticle={onViewArticle}
-        onConsultDpo={(topic) => onConsultDpo && onConsultDpo()}
+      />
+
+      {/* 30-Day Audit Frequency & Regulatory Compliance Heatmap */}
+      <ComplianceHeatmap
+        history={history}
+        lang={lang}
+        currentDomain={report.domain || report.target}
+        currentScore={report.score}
       />
 
       {/* Main Section: Gaps & Warnings */}
@@ -848,6 +1153,30 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Official Law 08/09 Compliance Certificate Modal */}
+      <OfficialCertificateModal
+        report={report}
+        isOpen={isCertificateOpen}
+        onClose={() => setIsCertificateOpen(false)}
+        lang={lang}
+      />
+
+      {/* Law 08/09 Statutory Penalty & Financial Liability Calculator Modal */}
+      <PenaltyCalculatorModal
+        report={report}
+        isOpen={isPenaltyCalcOpen}
+        onClose={() => setIsPenaltyCalcOpen(false)}
+        lang={lang}
+      />
+
+      {/* Data Subject Rights (DSAR) Citizen Portal Generator Modal */}
+      <DsarPortalModal
+        report={report}
+        isOpen={isDsarPortalOpen}
+        onClose={() => setIsDsarPortalOpen(false)}
+        lang={lang}
+      />
     </>
   );
 };

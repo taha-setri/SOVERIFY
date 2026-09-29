@@ -171,16 +171,10 @@ export const HistoryDashboard: React.FC<HistoryDashboardProps> = ({
                 <History className="h-3.5 w-3.5" />
                 <span>{isAr ? 'لوحة تتبع التقدم وتطور الامتثال' : 'Historical Audit Tracker & Evolution'}</span>
               </div>
-              {currentUser?.uid ? (
-                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-teal-500/10 border border-teal-500/30 text-teal-300 text-xs font-mono">
-                  <Cloud className="h-3 w-3 text-teal-400" />
-                  <span>{isAr ? 'مزامنة سحابية نشطة (Firebase Firestore)' : 'Firestore Cloud Sync Active'}</span>
-                </div>
-              ) : (
-                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-800 border border-slate-700 text-slate-400 text-xs font-mono">
-                  <span>{isAr ? 'تخزين محلي (سجل الدخول للمزامنة السحابية)' : 'Local Storage (Login for Cloud Sync)'}</span>
-                </div>
-              )}
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-mono">
+                <Cloud className="h-3 w-3 text-emerald-400" />
+                <span>{isAr ? 'السجل السيادي المعتمد للتدقيق' : 'Sovereign Audit Ledger Active'}</span>
+              </div>
             </div>
 
             <h2 className="text-2xl sm:text-3xl font-extrabold text-white">
@@ -188,8 +182,8 @@ export const HistoryDashboard: React.FC<HistoryDashboardProps> = ({
             </h2>
             <p className="text-sm text-slate-400 max-w-2xl mt-1 leading-relaxed">
               {isAr
-                ? 'استعراض التقارير السابقة ومتابعة سد الثغرات القانونية ومزامنتها عبر السحابة مع قاعدة بيانات Firestore.'
-                : 'Monitor the historical trajectory of your domain compliance over consecutive auditing runs, synchronized via Firebase.'}
+                ? 'استعراض التقارير السابقة ومتابعة سد الثغرات القانونية وتتبع مسار الامتثال الزمني المعتمد.'
+                : 'Monitor the historical trajectory of your domain compliance over consecutive auditing runs.'}
             </p>
           </div>
 

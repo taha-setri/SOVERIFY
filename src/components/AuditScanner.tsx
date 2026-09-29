@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Globe, ShieldAlert, Sparkles, RefreshCw, CheckCircle2, ShieldCheck, Server, AlertCircle, ListPlus, Layers, Download, ArrowRight, ExternalLink, Filter } from 'lucide-react';
-import { AuditReport, BulkAuditSummary } from '../types';
+import { AuditReport, BulkAuditSummary, Language } from '../types';
 import { runComplianceScan } from '../services/complianceScanner';
 import { ComplianceScoreTooltip } from './ComplianceScoreTooltip';
 
 interface AuditScannerProps {
   onScan: (target: string) => void;
   isScanning: boolean;
-  lang: 'ar' | 'en';
+  lang: Language;
   defaultTarget?: string;
   onSelectReportFromBulk?: (report: AuditReport) => void;
   onBulkReportsGenerated?: (reports: AuditReport[]) => void;
@@ -22,6 +22,7 @@ export const AuditScanner: React.FC<AuditScannerProps> = ({
   onBulkReportsGenerated
 }) => {
   const isAr = lang === 'ar';
+  const isFr = lang === 'fr';
   const [scanMode, setScanMode] = useState<'single' | 'bulk'>('single');
   const [target, setTarget] = useState(defaultTarget);
   const [scanStepIndex, setScanStepIndex] = useState(0);
@@ -41,11 +42,11 @@ export const AuditScanner: React.FC<AuditScannerProps> = ({
   }, [defaultTarget]);
 
   const scanSteps = [
-    { textAr: 'فحص التشفير ونفق الاتصال الآمن (TLS 1.3 / HSTS)...', textEn: 'Analyzing cryptographic transport security & TLS 1.3...' },
-    { textAr: 'التحقق من رقم وصل إشعار أو ترخيص اللجنة الوطنية CNDP...', textEn: 'Querying CNDP prior declaration receipt references...' },
-    { textAr: 'فحص ملفات تعريف الارتباط وسكريبتات التتبع قبل الموافقة...', textEn: 'Inspecting trackers & pre-consent cookie scripts...' },
-    { textAr: 'تدقيق السيادة وموقع الاستضافة السحابية وفق المادة 43...', textEn: 'Auditing cross-border hosting & digital sovereignty...' },
-    { textAr: 'توليد خارطة المعالجة لـ 30 يوماً وتقييم العقوبات المحتملة...', textEn: 'Synthesizing 30-day remediation roadmap & score...' },
+    { textAr: 'فحص التشفير ونفق الاتصال الآمن (TLS 1.3 / HSTS)...', textEn: 'Analyzing cryptographic transport security & TLS 1.3...', textFr: 'Vérification du chiffrement de transport et TLS 1.3 / HSTS...' },
+    { textAr: 'التحقق من رقم وصل إشعار أو ترخيص اللجنة الوطنية CNDP...', textEn: 'Querying CNDP prior declaration receipt references...', textFr: 'Contrôle des récépissés de déclaration préalable CNDP...' },
+    { textAr: 'فحص ملفات تعريف الارتباط وسكريبتات التتبع قبل الموافقة...', textEn: 'Inspecting trackers & pre-consent cookie scripts...', textFr: 'Inspection des cookies et traceurs avant consentement...' },
+    { textAr: 'تدقيق السيادة وموقع الاستضافة السحابية وفق المادة 43...', textEn: 'Auditing cross-border hosting & digital sovereignty...', textFr: 'Audit de souveraineté et hébergement cloud (Article 43)...' },
+    { textAr: 'توليد خارطة المعالجة لـ 30 يوماً وتقييم العقوبات المحتملة...', textEn: 'Synthesizing 30-day remediation roadmap & score...', textFr: 'Génération du plan de remédiation 30 jours et score...' },
   ];
 
   useEffect(() => {
@@ -176,40 +177,40 @@ export const AuditScanner: React.FC<AuditScannerProps> = ({
     <div className="w-full max-w-4xl mx-auto space-y-6">
       {/* Scanner Mode Toggle */}
       <div className="flex items-center justify-center">
-        <div className="inline-flex rounded-xl border border-slate-800 bg-slate-950 p-1 font-mono text-xs">
+        <div className="inline-flex rounded-2xl border-2 border-white/20 bg-black p-1.5 font-mono text-xs sm:text-sm">
           <button
             onClick={() => setScanMode('single')}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg transition cursor-pointer ${
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl transition cursor-pointer font-bold ${
               scanMode === 'single'
-                ? 'bg-emerald-500 text-slate-950 font-bold shadow-md shadow-emerald-500/20'
-                : 'text-slate-400 hover:text-white'
+                ? 'bg-emerald-500 text-black font-black shadow-lg shadow-emerald-500/25'
+                : 'text-slate-300 hover:text-white'
             }`}
           >
-            <Globe className="h-3.5 w-3.5" />
-            <span>{isAr ? 'فحص نطاق فردي' : 'Single Target Scan'}</span>
+            <Globe className="h-4 w-4" />
+            <span>{isAr ? 'فحص نطاق فردي' : isFr ? 'Audit Unique' : 'Single Target Scan'}</span>
           </button>
           <button
             onClick={() => setScanMode('bulk')}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg transition cursor-pointer ${
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl transition cursor-pointer font-bold ${
               scanMode === 'bulk'
-                ? 'bg-emerald-500 text-slate-950 font-bold shadow-md shadow-emerald-500/20'
-                : 'text-slate-400 hover:text-white'
+                ? 'bg-emerald-500 text-black font-black shadow-lg shadow-emerald-500/25'
+                : 'text-slate-300 hover:text-white'
             }`}
           >
-            <ListPlus className="h-3.5 w-3.5" />
-            <span>{isAr ? 'فحص جماعي مجمّع (Bulk Audit)' : 'Bulk Multi-Domain Audit'}</span>
+            <ListPlus className="h-4 w-4" />
+            <span>{isAr ? 'فحص جماعي مجمّع (Bulk)' : isFr ? 'Audit Groupé (Bulk)' : 'Bulk Audit'}</span>
           </button>
         </div>
       </div>
 
       {/* Mode 1: Single Scan */}
       {scanMode === 'single' ? (
-        <div className="relative rounded-2xl border border-emerald-500/40 bg-slate-900/95 p-5 sm:p-7 shadow-2xl shadow-emerald-950/30 backdrop-blur-xl">
+        <div className="relative rounded-3xl border-2 border-emerald-500/40 bg-zinc-950/95 p-6 sm:p-8 shadow-2xl shadow-emerald-950/40 backdrop-blur-xl">
           <form onSubmit={handleSingleSubmit} className="space-y-4">
             <div className="flex flex-col sm:flex-row gap-3">
               <div className="relative flex-1">
-                <div className={`absolute inset-y-0 ${isAr ? 'right-4' : 'left-4'} flex items-center pointer-events-none text-slate-500`}>
-                  <Globe className="h-5 w-5 text-emerald-400" />
+                <div className={`absolute inset-y-0 ${isAr ? 'right-4' : 'left-4'} flex items-center pointer-events-none text-emerald-400`}>
+                  <Globe className="h-6 w-6 text-emerald-400" />
                 </div>
                 <input
                   type="text"
@@ -218,19 +219,21 @@ export const AuditScanner: React.FC<AuditScannerProps> = ({
                   placeholder={
                     isAr
                       ? 'أدخل رابط موقعك أو المنصة الإلكترونية المراد فحصها (مثال: https://your-domain.ma أو your-site.ma)...'
+                      : isFr
+                      ? 'Entrez l’URL du site à auditer (ex: https://votre-domaine.ma ou domaine.ma)...'
                       : 'Enter website URL or domain to audit (e.g. https://your-domain.ma or your-site.ma)...'
                   }
                   disabled={isScanning}
                   autoFocus
-                  className={`w-full rounded-xl border border-slate-700/80 bg-slate-950/90 py-4 ${isAr ? 'pr-12 pl-4' : 'pl-12 pr-4'} text-sm text-white placeholder-slate-500 outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-500/20 transition font-mono disabled:opacity-50 shadow-inner`}
+                  className={`w-full rounded-2xl border-2 border-white/20 bg-black py-4.5 ${isAr ? 'pr-14 pl-4' : 'pl-14 pr-4'} text-base sm:text-lg text-white placeholder-slate-400 outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-500/25 transition font-mono font-medium disabled:opacity-50 shadow-inner`}
                 />
                 {target && !isScanning && (
                   <button
                     type="button"
                     onClick={() => setTarget('')}
-                    className={`absolute inset-y-0 ${isAr ? 'left-3' : 'right-3'} flex items-center text-xs text-slate-500 hover:text-slate-300 font-mono`}
+                    className={`absolute inset-y-0 ${isAr ? 'left-4' : 'right-4'} flex items-center text-xs sm:text-sm text-slate-400 hover:text-white font-mono cursor-pointer`}
                   >
-                    {isAr ? 'مسح' : 'Clear'}
+                    {isAr ? 'مسح' : isFr ? 'Effacer' : 'Clear'}
                   </button>
                 )}
               </div>
@@ -238,39 +241,39 @@ export const AuditScanner: React.FC<AuditScannerProps> = ({
               <button
                 type="submit"
                 disabled={isScanning || !target.trim()}
-                className="relative inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-400 px-8 py-4 text-sm font-black text-slate-950 shadow-xl shadow-emerald-500/30 hover:from-emerald-400 hover:to-teal-300 disabled:opacity-50 transition cursor-pointer shrink-0"
+                className="relative inline-flex items-center justify-center gap-2.5 rounded-2xl bg-emerald-500 hover:bg-emerald-400 px-8 py-4.5 text-base sm:text-lg font-black text-black shadow-xl shadow-emerald-500/30 disabled:opacity-50 transition cursor-pointer shrink-0"
               >
                 {isScanning ? (
                   <>
-                    <RefreshCw className="h-4 w-4 animate-spin text-slate-950" />
-                    <span>{isAr ? 'جاري الفحص الميداني...' : 'Inspecting Target...'}</span>
+                    <RefreshCw className="h-5 w-5 animate-spin text-black" />
+                    <span>{isAr ? 'جاري الفحص الميداني...' : isFr ? 'Inspection en cours...' : 'Inspecting Target...'}</span>
                   </>
                 ) : (
                   <>
-                    <ShieldCheck className="h-5 w-5" />
-                    <span>{isAr ? 'بدء التدقيق السيادي الفوري' : 'Run Sovereign Audit'}</span>
+                    <ShieldCheck className="h-6 w-6 text-black" />
+                    <span>{isAr ? 'بدء التدقيق السيادي الفوري' : isFr ? 'Lancer l’Audit Souverain' : 'Run Sovereign Audit'}</span>
                   </>
                 )}
               </button>
             </div>
 
-            {/* Quick legal checklist tags */}
-            <div className="flex flex-wrap items-center justify-between gap-3 pt-2 text-[11px] text-slate-400 font-mono border-t border-slate-800/60">
-              <span className="flex items-center gap-1.5 text-emerald-400 font-semibold">
-                <CheckCircle2 className="h-3.5 w-3.5" />
-                <span>{isAr ? 'مطابقة الظهير الشريف 1.09.15' : 'Dahir 1-09-15 Certified'}</span>
+            {/* Quick legal checklist tags - Enlarged */}
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-3 text-xs sm:text-sm text-slate-300 font-mono border-t border-white/10">
+              <span className="flex items-center gap-1.5 text-emerald-400 font-bold">
+                <CheckCircle2 className="h-4 w-4" />
+                <span>{isAr ? 'مطابقة الظهير الشريف 1.09.15' : isFr ? 'Conforme Dahir 1.09.15' : 'Dahir 1-09-15 Certified'}</span>
               </span>
-              <span className="flex items-center gap-1.5 text-slate-300">
-                <Server className="h-3.5 w-3.5 text-emerald-500" />
-                <span>{isAr ? 'المادتان 43 و 63: السيادة والتوطين' : 'Art. 43 & 63: Data Residency'}</span>
+              <span className="flex items-center gap-1.5 text-white font-semibold">
+                <Server className="h-4 w-4 text-emerald-400" />
+                <span>{isAr ? 'المادتان 43 و 63: السيادة والتوطين' : isFr ? 'Art. 43 & 63: Souveraineté' : 'Art. 43 & 63: Data Residency'}</span>
               </span>
-              <span className="flex items-center gap-1.5 text-slate-300">
-                <ShieldAlert className="h-3.5 w-3.5 text-amber-500" />
-                <span>{isAr ? 'المادة 53: وصل CNDP وتصريح D-1' : 'Art. 53: CNDP Declaration'}</span>
+              <span className="flex items-center gap-1.5 text-white font-semibold">
+                <ShieldAlert className="h-4 w-4 text-amber-400" />
+                <span>{isAr ? 'المادة 53: وصل CNDP وتصريح D-1' : isFr ? 'Art. 53: Récépissé CNDP D-1' : 'Art. 53: CNDP Declaration'}</span>
               </span>
-              <span className="flex items-center gap-1.5 text-slate-300">
-                <Sparkles className="h-3.5 w-3.5 text-sky-400" />
-                <span>{isAr ? 'خوارزمية التشفير SHA-256' : 'SHA-256 Tamper-Proof'}</span>
+              <span className="flex items-center gap-1.5 text-emerald-300 font-semibold">
+                <Sparkles className="h-4 w-4 text-emerald-400" />
+                <span>{isAr ? 'خوارزمية التشفير SHA-256' : isFr ? 'Scellé SHA-256' : 'SHA-256 Tamper-Proof'}</span>
               </span>
             </div>
           </form>
@@ -414,7 +417,7 @@ export const AuditScanner: React.FC<AuditScannerProps> = ({
             <div className="rounded-xl border border-slate-800 bg-slate-950 p-3">
               <div className="flex items-center justify-center gap-1 text-[11px] text-slate-400 mb-1">
                 <span>{isAr ? 'متوسط الامتثال' : 'Mean Score'}</span>
-                <ComplianceScoreTooltip score={bulkSummary.averageScore} lang={lang} size="sm" />
+                <ComplianceScoreTooltip score={bulkSummary.averageScore} lang={isAr ? 'ar' : 'en'} size="sm" />
               </div>
               <span
                 className={`text-2xl font-bold ${
@@ -479,7 +482,7 @@ export const AuditScanner: React.FC<AuditScannerProps> = ({
                           >
                             {report.score}%
                           </span>
-                          <ComplianceScoreTooltip score={report.score} lang={lang} size="sm" />
+                          <ComplianceScoreTooltip score={report.score} lang={isAr ? 'ar' : 'en'} size="sm" />
                         </div>
                       </td>
                       <td className="p-3.5 text-slate-300 text-xs">

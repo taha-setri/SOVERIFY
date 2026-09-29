@@ -31,9 +31,9 @@ export const SovereignMapModal: React.FC<SovereignMapModalProps> = ({
   if (!isOpen) return null;
 
   const isAr = lang === 'ar';
-  const isMorocco = report.sovereigntyStatus.isMoroccoHosted ?? report.sovereigntyStatus.isMoroccanHosting;
+  const isMorocco = report.sovereigntyStatus.isMoroccoHosted;
   const hostLocation = report.sovereigntyStatus.location || (isMorocco ? 'Casablanca, Morocco' : 'Frankfurt, Germany');
-  const serverIp = report.serverIp || report.sovereigntyStatus.ip || '196.200.160.45';
+  const serverIp = report.sovereigntyStatus.ip || '196.200.160.45';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-slate-950/85 backdrop-blur-md animate-fadeIn overflow-y-auto">

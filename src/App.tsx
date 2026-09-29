@@ -14,24 +14,24 @@ import { FounderVisionMarquee } from './components/FounderVisionMarquee';
 import { FounderVisionScreen } from './components/FounderVisionScreen';
 import { PrivacyAndCookiesSection } from './components/PrivacyAndCookiesSection';
 import { PythonSourceModal } from './components/PythonSourceModal';
-import { AuthModal } from './components/AuthModal';
 import { FormalPdfReportModal } from './components/FormalPdfReportModal';
 import { GeminiDpoChatbot } from './components/GeminiDpoChatbot';
 import { DpoEmailAlertModal } from './components/DpoEmailAlertModal';
 import { RegulatoryUpdatesTab } from './components/RegulatoryUpdatesTab';
 import { AuditTrailTab } from './components/AuditTrailTab';
 import { PostQuantumDefenseCenter } from './components/PostQuantumDefenseCenter';
-import { ProcessingRegistryTab } from './components/ProcessingRegistryTab';
-import { DpiaSimulatorTab } from './components/DpiaSimulatorTab';
-import { SubjectRightsTab } from './components/SubjectRightsTab';
 import { CndpDeclarationModal } from './components/CndpDeclarationModal';
 import { SovereignMapModal } from './components/SovereignMapModal';
 import { CookieSimulatorModal } from './components/CookieSimulatorModal';
+import { RopaRegistryModal } from './components/RopaRegistryModal';
+import { DpiaAssessmentModal } from './components/DpiaAssessmentModal';
+import { SovereignTrustSealModal } from './components/SovereignTrustSealModal';
+import { ContinuousAuditModal } from './components/ContinuousAuditModal';
 import { Footer } from './components/Footer';
 import { runComplianceScan } from './services/complianceScanner';
 import { triggerDpoSecurityAlertService, EmailDispatchResult } from './services/dpoNotificationService';
 import { recordAuditEvent } from './services/auditTrailService';
-import { AuditReport, ComplianceGap, ScanHistoryItem, UserAccount } from './types';
+import { AuditReport, ComplianceGap, ScanHistoryItem, UserAccount, Language } from './types';
 import { 
   ShieldCheck, 
   Scale, 
@@ -48,16 +48,20 @@ import {
   FileClock
 } from 'lucide-react';
 import { 
-  auth, 
   saveReportToFirestore, 
   subscribeToUserReports, 
   deleteReportFromFirestore,
   saveDpoAlertToFirestore
 } from './lib/firebase';
-import { onAuthStateChanged } from 'firebase/auth';
 
 export default function App() {
-  const [lang, setLang] = useState<'ar' | 'en'>('ar');
+  const [lang, setLang] = useState<Language>('ar');
+
+  useEffect(() => {
+    document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+    document.documentElement.lang = lang;
+  }, [lang]);
+
   const [activeTab, setActiveTab] = useState<string>('audit');
   const [isScanning, setIsScanning] = useState<boolean>(false);
   const [currentReport, setCurrentReport] = useState<AuditReport | null>(null);
@@ -67,15 +71,22 @@ export default function App() {
 
   // Modals
   const [isPythonModalOpen, setIsPythonModalOpen] = useState<boolean>(false);
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
   const [isPdfModalOpen, setIsPdfModalOpen] = useState<boolean>(false);
   const [isEmailAlertModalOpen, setIsEmailAlertModalOpen] = useState<boolean>(false);
+  const [isCndpModalOpen, setIsCndpModalOpen] = useState<boolean>(false);
+  const [isSovereignMapModalOpen, setIsSovereignMapModalOpen] = useState<boolean>(false);
+  const [isCookieSimulatorModalOpen, setIsCookieSimulatorModalOpen] = useState<boolean>(false);
+  const [isRopaModalOpen, setIsRopaModalOpen] = useState<boolean>(false);
+  const [isDpiaModalOpen, setIsDpiaModalOpen] = useState<boolean>(false);
+  const [isTrustSealModalOpen, setIsTrustSealModalOpen] = useState<boolean>(false);
+  const [isContinuousAuditModalOpen, setIsContinuousAuditModalOpen] = useState<boolean>(false);
   const [emailDispatchResult, setEmailDispatchResult] = useState<EmailDispatchResult | null>(null);
   const [isDispatchingEmail, setIsDispatchingEmail] = useState<boolean>(false);
   const [dpoConsultationTopic, setDpoConsultationTopic] = useState<string>('');
 
-  // Authenticated User - Institutional & Founder Profile
-  const [user, setUser] = useState<UserAccount | null>({
+  // Sovereign Institutional Profile - Open Access, No Login Required
+  const [user] = useState<UserAccount>({
+    uid: 'soverify-sovereign-auditor',
     name: 'طه الستري (Taha Setri)',
     email: 'tahasetri@gmail.com',
     role: 'المؤسس ورئيس المعمارية السيادية / Chief Architect',
@@ -84,41 +95,6 @@ export default function App() {
 
   // History state - Clean without preset commercial sites
   const [history, setHistory] = useState<ScanHistoryItem[]>([]);
-
-  // Listen to Firebase Auth state safely
-  useEffect(() => {
-    try {
-      const unsubscribe = onAuthStateChanged(
-        auth,
-        (firebaseUser) => {
-          if (firebaseUser) {
-            const userObj: UserAccount = {
-              uid: firebaseUser.uid,
-              name: firebaseUser.displayName || 'Google User',
-              email: firebaseUser.email || '',
-              role: 'DPO / حماية المعطيات الشخصية',
-              organization: 'Enterprise (Cloud Verified)',
-              photoURL: firebaseUser.photoURL || undefined,
-              isFirebaseUser: true
-            };
-            setUser(userObj);
-          }
-        },
-        (error) => {
-          console.warn('[Soverify Auth] Auth state observer notice (non-fatal):', error);
-        }
-      );
-      return () => {
-        try {
-          unsubscribe();
-        } catch {
-          // ignore
-        }
-      };
-    } catch (e) {
-      console.warn('[Soverify Auth] Failed to attach auth state observer:', e);
-    }
-  }, []);
 
   // Listen to Firestore real-time reports when a user has a UID
   useEffect(() => {
@@ -219,7 +195,7 @@ export default function App() {
           warningsCount: warnings.length
         };
 
-        setHistory((prev) => [newHistoryItem, ...prev.filter((h) => h.target !== report.target)]);
+        setHistory((prev) => [newHistoryItem, ...prev]);
 
         // Auto-save to Firestore if user has UID
         if (user?.uid) {
@@ -324,9 +300,11 @@ export default function App() {
   };
 
   const isAr = lang === 'ar';
+  const isFr = lang === 'fr';
+  const subLang: 'ar' | 'en' = lang === 'ar' ? 'ar' : 'en';
 
   return (
-    <div className={`min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans ${isAr ? 'rtl' : 'ltr'}`} dir={isAr ? 'rtl' : 'ltr'}>
+    <div className={`min-h-screen bg-black text-white selection:bg-emerald-500 selection:text-black flex flex-col font-sans ${isAr ? 'rtl' : 'ltr'}`} dir={isAr ? 'rtl' : 'ltr'}>
       {/* Top Navigation */}
       <Navbar
         activeTab={activeTab}
@@ -334,7 +312,6 @@ export default function App() {
         lang={lang}
         setLang={setLang}
         user={user}
-        onOpenAuth={() => setIsAuthModalOpen(true)}
         onOpenPythonCode={() => {
           setIsPythonModalOpen(true);
           recordAuditEvent({
@@ -370,10 +347,10 @@ export default function App() {
         }}
       />
 
-      {/* Live Regulatory Ticker / Marquee */}
-      <div className="bg-slate-900/95 border-b border-slate-800/80 px-4 py-2 overflow-hidden flex items-center gap-3 z-30 select-none">
-        <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded bg-emerald-950/80 border border-emerald-500/40 text-emerald-400 font-bold text-xs shrink-0 font-mono">
-          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+      {/* Live Regulatory Ticker / Marquee - Pure Black, White & Green */}
+      <div className="bg-black border-b border-white/10 px-4 py-2.5 overflow-hidden flex items-center gap-3 z-30 select-none">
+        <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-emerald-950 border border-emerald-500/50 text-emerald-400 font-black text-xs shrink-0 font-mono tracking-wider">
+          <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
           <span>CNDP LIVE</span>
         </div>
         <div className="overflow-hidden w-full">
@@ -383,32 +360,52 @@ export default function App() {
               <MarqueeTag
                 behavior="scroll"
                 direction={isAr ? "right" : "left"}
-                scrollamount="5"
-                className="text-xs font-mono text-slate-300 block"
+                scrollamount="6"
+                className="text-xs sm:text-sm font-mono text-slate-200 block font-medium"
               >
-                <span className="text-red-400 font-bold inline-flex items-center gap-1">
-                  <ShieldAlert className="w-3.5 h-3.5 inline text-red-400" />
-                  {isAr ? 'إنذار رسمي: عقوبات المادة 53 من القانون 08-09 تصل إلى 100,000 درهم عن انعدام التصريح المسبق' : 'Official Warning: Article 53 fines up to 100,000 MAD for missing CNDP declaration'}
+                <span className="text-red-400 font-bold inline-flex items-center gap-1.5">
+                  <ShieldAlert className="w-4 h-4 inline text-red-400" />
+                  {isAr 
+                    ? 'إنذار رسمي: عقوبات المادة 53 من القانون 09-08 تصل إلى 100,000 درهم عن انعدام التصريح المسبق' 
+                    : isFr
+                    ? 'Avertissement CNDP : Sanctions de l’Article 53 jusqu’à 100 000 MAD en cas de défaut de déclaration préalable'
+                    : 'Official Warning: Article 53 fines up to 100,000 MAD for missing CNDP declaration'}
                 </span>
                 &nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;&nbsp;&nbsp;
-                <span className="text-amber-400 font-bold inline-flex items-center gap-1">
-                  <Scale className="w-3.5 h-3.5 inline text-amber-400" />
-                  {isAr ? 'مداولة CNDP رقم 08-2020: حظر وضع ملفات تعريف الارتباط قبل الحصول على الموافقة الصريحة الحرة' : 'CNDP Deliberation 08-2020: Strict ban on cookies prior to explicit consent'}
+                <span className="text-amber-400 font-bold inline-flex items-center gap-1.5">
+                  <Scale className="w-4 h-4 inline text-amber-400" />
+                  {isAr 
+                    ? 'مداولة CNDP رقم 08-2020: حظر وضع ملفات تعريف الارتباط قبل الحصول على الموافقة الصريحة الحرة' 
+                    : isFr
+                    ? 'Délibération CNDP 08-2020 : Interdiction des cookies et traceurs avant recueil du consentement libre et éclairé'
+                    : 'CNDP Deliberation 08-2020: Strict ban on cookies prior to explicit consent'}
                 </span>
                 &nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;&nbsp;&nbsp;
-                <span className="text-emerald-400 font-bold inline-flex items-center gap-1">
-                  <ShieldCheck className="w-3.5 h-3.5 inline text-emerald-400" />
-                  {isAr ? 'السيادة الوطنية: توطين معطيات المواطنين المغاربة داخل مراكز بيانات محلية إلزامي قانونياً' : 'National Sovereignty: Local data residency strictly enforced under Article 63'}
+                <span className="text-emerald-400 font-bold inline-flex items-center gap-1.5">
+                  <ShieldCheck className="w-4 h-4 inline text-emerald-400" />
+                  {isAr 
+                    ? 'السيادة الوطنية: توطين معطيات المواطنين المغاربة داخل مراكز بيانات محلية إلزامي قانونياً (المادتان 43 و 44)' 
+                    : isFr
+                    ? 'Souveraineté Numérique : Localisation des données au Maroc obligatoire (Articles 43 & 44)'
+                    : 'National Sovereignty: Local Moroccan data residency strictly enforced under Articles 43 & 44'}
                 </span>
                 &nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;&nbsp;&nbsp;
-                <span className="text-blue-400 font-bold inline-flex items-center gap-1">
-                  <AlertCircle className="w-3.5 h-3.5 inline text-blue-400" />
-                  {isAr ? 'بروتوكول طوارئ 72h: إلزامية إبلاغ اللجنة الوطنية CNDP بأي خرق أمني يمس البيانات الشخصية' : '72h Protocol: Mandatory formal data breach notification to CNDP under Article 23'}
+                <span className="text-sky-400 font-bold inline-flex items-center gap-1.5">
+                  <AlertCircle className="w-4 h-4 inline text-sky-400" />
+                  {isAr 
+                    ? 'بروتوكول طوارئ 72h: إلزامية إبلاغ اللجنة الوطنية CNDP بأي خرق أمني يمس البيانات الشخصية' 
+                    : isFr
+                    ? 'Protocole d’urgence 72h : Notification obligatoire de toute violation de données à la CNDP'
+                    : '72h Protocol: Mandatory formal data breach notification to CNDP under Article 23'}
                 </span>
                 &nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;&nbsp;&nbsp;
-                <span className="text-purple-400 font-bold inline-flex items-center gap-1">
-                  <FileText className="w-3.5 h-3.5 inline text-purple-400" />
-                  {isAr ? 'اعتماد VerifyOS™: المنصة الأولى بالمملكة للتدقيق السيادي ومطابقة CNDP & GDPR' : 'VerifyOS™ Certified: Morocco premier sovereign RegTech & compliance platform'}
+                <span className="text-emerald-300 font-bold inline-flex items-center gap-1.5">
+                  <FileText className="w-4 h-4 inline text-emerald-400" />
+                  {isAr 
+                    ? 'اعتماد VerifyOS™: المنصة الأولى بالمملكة للتدقيق السيادي ومطابقة CNDP' 
+                    : isFr
+                    ? 'VerifyOS™ Souverain : Première infrastructure nationale d’audit et de conformité CNDP'
+                    : 'VerifyOS™ Certified: Morocco premier sovereign RegTech & CNDP compliance platform'}
                 </span>
               </MarqueeTag>
             );
@@ -466,7 +463,7 @@ export default function App() {
             {currentReport ? (
               <ResultsDashboard
                 report={currentReport}
-                lang={lang}
+                lang={subLang}
                 onViewCookies={() => setActiveTab('cookies')}
                 onViewRemediation={() => setActiveTab('remediation')}
                 onViewBreachGuide={() => setActiveTab('breach')}
@@ -475,10 +472,18 @@ export default function App() {
                 onConsultDpo={() => setActiveTab('chatbot')}
                 onTriggerDpoEmailAlert={handleTriggerDpoEmailAlert}
                 onViewAuditTrail={() => setActiveTab('auditTrail')}
+                onOpenCndpDeclaration={() => setIsCndpModalOpen(true)}
+                onOpenSovereignMap={() => setIsSovereignMapModalOpen(true)}
+                onOpenCookieSimulator={() => setIsCookieSimulatorModalOpen(true)}
+                onOpenRopaRegistry={() => setIsRopaModalOpen(true)}
+                onOpenDpiaAssessment={() => setIsDpiaModalOpen(true)}
+                onOpenTrustSeal={() => setIsTrustSealModalOpen(true)}
+                onOpenContinuousAudit={() => setIsContinuousAuditModalOpen(true)}
+                history={history}
               />
             ) : (
               <MinisterialPresentationCard
-                lang={lang}
+                lang={subLang}
                 onStartAuditNow={() => {
                   const el = document.querySelector('input[type="text"]') as HTMLInputElement;
                   if (el) el.focus();
@@ -488,50 +493,16 @@ export default function App() {
 
             {/* Founder's Vision (Taha Setri) */}
             <FounderVisionMarquee 
-              lang={lang} 
+              lang={subLang} 
               onOpenVisionScreen={() => setActiveTab('vision')} 
             />
           </div>
         )}
 
-        {/* Tab: CNDP Processing Activities Register (سجل معالجة البيانات الشخصية) */}
-        {activeTab === 'registry' && (
-          <ProcessingRegistryTab
-            lang={lang}
-            onConsultDpo={(topic) => {
-              if (topic) setDpoConsultationTopic(topic);
-              setActiveTab('chatbot');
-            }}
-          />
-        )}
-
-        {/* Tab: DPIA / AIPD Risk Assessment Simulator (محاكي تقييم الأثر والمخاطر) */}
-        {activeTab === 'dpia' && (
-          <DpiaSimulatorTab
-            lang={lang}
-            onConsultDpo={(topic) => {
-              if (topic) setDpoConsultationTopic(topic);
-              setActiveTab('chatbot');
-            }}
-            onNavigateToArticles={handleNavigateToArticle}
-          />
-        )}
-
-        {/* Tab: Data Subject Rights Response Suite (ممارسة حقوق المعنيين بالأمر) */}
-        {activeTab === 'rights' && (
-          <SubjectRightsTab
-            lang={lang}
-            onConsultDpo={(topic) => {
-              if (topic) setDpoConsultationTopic(topic);
-              setActiveTab('chatbot');
-            }}
-          />
-        )}
-
         {/* Tab: Regulatory Updates (CNDP & Moroccan Privacy Law via Google Search) */}
         {activeTab === 'updates' && (
           <RegulatoryUpdatesTab
-            lang={lang}
+            lang={subLang}
             onNavigateToArticle={handleNavigateToArticle}
             onConsultDpoWithTopic={(topic) => {
               setDpoConsultationTopic(topic);
@@ -543,7 +514,7 @@ export default function App() {
         {/* Tab: Post-Quantum Cryptography & Defense Center (NIST FIPS 203/204) */}
         {activeTab === 'quantum' && (
           <PostQuantumDefenseCenter
-            lang={lang}
+            lang={subLang}
             currentDomain={currentReport?.domain || targetInput || 'banquepopulaire.ma'}
             onNavigateToAudit={(domain) => {
               setTargetInput(domain);
@@ -556,7 +527,7 @@ export default function App() {
         {/* Tab: Gemini DPO AI Chatbot (المستشار الذكي) */}
         {activeTab === 'chatbot' && (
           <GeminiDpoChatbot
-            lang={lang}
+            lang={subLang}
             currentReport={currentReport}
             currentUser={user}
             initialPrompt={dpoConsultationTopic}
@@ -566,7 +537,7 @@ export default function App() {
         {/* Tab: Articles of Law Reference (Loi 08-09 & CNDP) */}
         {activeTab === 'articles' && (
           <ArticlesOfLawTab
-            lang={lang}
+            lang={subLang}
             currentReport={currentReport}
             selectedArticleId={selectedArticleId}
             onNavigateToRemediation={() => setActiveTab('remediation')}
@@ -574,40 +545,72 @@ export default function App() {
         )}
 
         {/* Tab 2: Deep Cookies Audit */}
-        {activeTab === 'cookies' && currentReport && (
-          <DeepCookiesAudit
-            cookies={currentReport.cookies}
-            lang={lang}
-            targetUrl={currentReport.target}
-          />
+        {activeTab === 'cookies' && (
+          currentReport ? (
+            <DeepCookiesAudit
+              cookies={currentReport.cookies}
+              lang={subLang}
+              targetUrl={currentReport.target}
+            />
+          ) : (
+            <div className="space-y-6">
+              <AuditScanner
+                onScan={handleScan}
+                isScanning={isScanning}
+                lang={lang}
+                defaultTarget={targetInput}
+              />
+              <div className="p-8 text-center rounded-2xl border border-slate-800 bg-slate-900/60">
+                <p className="text-slate-400 text-sm">
+                  {lang === 'ar' ? 'يرجى إدخال رابط الموقع أعلاه لتشغيل الفحص التفصيلي لملفات تعريف الارتباط والتعقب' : 'Please enter a website URL above to run the deep cookies audit.'}
+                </p>
+              </div>
+            </div>
+          )
         )}
 
         {/* Tab 3: 30-Day Automated Remediation Plan */}
-        {activeTab === 'remediation' && currentReport && (
-          <RemediationPlan
-            plan={currentReport.remediationPlan}
-            lang={lang}
-            targetDomain={currentReport.domain}
-            onDownloadPdf={() => setIsPdfModalOpen(true)}
-            report={currentReport}
-          />
+        {activeTab === 'remediation' && (
+          currentReport ? (
+            <RemediationPlan
+              plan={currentReport.remediationPlan}
+              lang={subLang}
+              targetDomain={currentReport.domain}
+              onDownloadPdf={() => setIsPdfModalOpen(true)}
+              report={currentReport}
+            />
+          ) : (
+            <div className="space-y-6">
+              <AuditScanner
+                onScan={handleScan}
+                isScanning={isScanning}
+                lang={lang}
+                defaultTarget={targetInput}
+              />
+              <div className="p-8 text-center rounded-2xl border border-slate-800 bg-slate-900/60">
+                <p className="text-slate-400 text-sm">
+                  {lang === 'ar' ? 'يرجى إدخال رابط الموقع أعلاه لتوليد خطة الـ 30 يوماً التصحيحية المخصصة' : 'Please enter a website URL above to generate the customized 30-day remediation roadmap.'}
+                </p>
+              </div>
+            </div>
+          )
         )}
 
         {/* Tab 4: Data Breach Incident Response Guide */}
         {activeTab === 'breach' && (
-          <BreachResponseGuide lang={lang} />
+          <BreachResponseGuide lang={subLang} />
         )}
 
         {/* Tab 5: Compliance Comparison Tool */}
         {activeTab === 'compare' && (
-          <ComparisonBattle lang={lang} />
+          <ComparisonBattle lang={subLang} />
         )}
 
         {/* Tab 6: Historical Reports & Tracking Evolution */}
         {activeTab === 'history' && (
           <HistoryDashboard
             history={history}
-            lang={lang}
+            lang={subLang}
             currentUser={user}
             onSelectReport={(target) => handleScan(target)}
             onSyncCurrentToCloud={handleManualSyncToCloud}
@@ -618,7 +621,7 @@ export default function App() {
         {/* Tab 7: Chronological Audit Trail & Accountability Ledger */}
         {activeTab === 'auditTrail' && (
           <AuditTrailTab
-            lang={lang}
+            lang={subLang}
             currentUser={user}
             onNavigateToArticle={handleNavigateToArticle}
             onConsultDpo={(topic) => {
@@ -631,7 +634,7 @@ export default function App() {
         {/* Tab 8: Dedicated Founder's Vision Screen (Taha Setri) */}
         {activeTab === 'vision' && (
           <FounderVisionScreen
-            lang={lang}
+            lang={subLang}
             onNavigateTab={(tab) => {
               setSelectedArticleId(null);
               setActiveTab(tab);
@@ -655,7 +658,7 @@ export default function App() {
               </span>
             </div>
             <span className="text-xs font-bold font-sans">
-              {isAr ? 'المستشار الذكي DPO (Gemini)' : 'Ask Gemini DPO Advisor'}
+              {isAr ? 'المستشار الذكي DPO (Gemini)' : isFr ? 'Conseiller DPO IA' : 'Ask Gemini DPO Advisor'}
             </span>
           </button>
         </div>
@@ -663,12 +666,12 @@ export default function App() {
 
       {/* Institutional Privacy & Cookies Compliance Section */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-6">
-        <PrivacyAndCookiesSection lang={lang} />
+        <PrivacyAndCookiesSection lang={subLang} />
       </div>
 
       {/* Moroccan Legal Reference & Founder Footer */}
       <Footer
-        lang={lang}
+        lang={subLang}
         onNavigateTab={(tab) => {
           setSelectedArticleId(null);
           setActiveTab(tab);
@@ -680,17 +683,7 @@ export default function App() {
       <PythonSourceModal
         isOpen={isPythonModalOpen}
         onClose={() => setIsPythonModalOpen(false)}
-        lang={lang}
-      />
-
-      {/* Authentication / DPO Profile Modal */}
-      <AuthModal
-        isOpen={isAuthModalOpen}
-        onClose={() => setIsAuthModalOpen(false)}
-        currentUser={user}
-        onLogin={(acc) => setUser(acc)}
-        onLogout={() => setUser(null)}
-        lang={lang}
+        lang={subLang}
       />
 
       {/* Formal PDF Report & 30-Day Plan Modal */}
@@ -700,7 +693,82 @@ export default function App() {
           onClose={() => setIsPdfModalOpen(false)}
           report={currentReport}
           user={user}
-          lang={lang}
+          lang={subLang}
+        />
+      )}
+
+      {/* CNDP Official Pre-Declaration Dossier Modal */}
+      {currentReport && (
+        <CndpDeclarationModal
+          isOpen={isCndpModalOpen}
+          onClose={() => setIsCndpModalOpen(false)}
+          report={currentReport}
+          user={user}
+          lang={subLang}
+        />
+      )}
+
+      {/* Sovereign Geolocation & Data Border Residency Map Modal */}
+      {currentReport && (
+        <SovereignMapModal
+          isOpen={isSovereignMapModalOpen}
+          onClose={() => setIsSovereignMapModalOpen(false)}
+          report={currentReport}
+          lang={subLang}
+        />
+      )}
+
+      {/* CNDP Compliant Cookie Banner Simulator & Injector Modal */}
+      {currentReport && (
+        <CookieSimulatorModal
+          isOpen={isCookieSimulatorModalOpen}
+          onClose={() => setIsCookieSimulatorModalOpen(false)}
+          report={currentReport}
+          lang={subLang}
+        />
+      )}
+
+      {/* RoPA - Mandatory Statutory Processing Activities Register (Art. 23) */}
+      {currentReport && (
+        <RopaRegistryModal
+          isOpen={isRopaModalOpen}
+          onClose={() => setIsRopaModalOpen(false)}
+          report={currentReport}
+          user={user}
+          lang={subLang}
+        />
+      )}
+
+      {/* DPIA / AIPD - Data Protection Impact Assessment (Art. 12) */}
+      {currentReport && (
+        <DpiaAssessmentModal
+          isOpen={isDpiaModalOpen}
+          onClose={() => setIsDpiaModalOpen(false)}
+          report={currentReport}
+          user={user}
+          lang={subLang}
+        />
+      )}
+
+      {/* Sovereign Trust Seal & Embeddable Verification Badge */}
+      {currentReport && (
+        <SovereignTrustSealModal
+          isOpen={isTrustSealModalOpen}
+          onClose={() => setIsTrustSealModalOpen(false)}
+          report={currentReport}
+          lang={subLang}
+        />
+      )}
+
+      {/* Continuous Audit Sentinel & Cadence Manager */}
+      {currentReport && (
+        <ContinuousAuditModal
+          isOpen={isContinuousAuditModalOpen}
+          onClose={() => setIsContinuousAuditModalOpen(false)}
+          report={currentReport}
+          user={user}
+          lang={subLang}
+          onTriggerScan={(domain) => handleScan(domain)}
         />
       )}
 
@@ -709,7 +777,7 @@ export default function App() {
         isOpen={isEmailAlertModalOpen}
         onClose={() => setIsEmailAlertModalOpen(false)}
         dispatchResult={emailDispatchResult}
-        lang={lang}
+        lang={subLang}
       />
     </div>
   );

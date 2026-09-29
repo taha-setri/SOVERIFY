@@ -1,13 +1,5 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { 
-  getAuth, 
-  GoogleAuthProvider, 
-  signInWithPopup, 
-  signOut, 
-  onAuthStateChanged,
-  User
-} from 'firebase/auth';
-import { 
   getFirestore, 
   collection, 
   doc, 
@@ -26,38 +18,8 @@ import { AuditReport, DpoSecurityAlert } from '../types';
 // Initialize Firebase App safely
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 
-// Initialize Firebase Auth
-export const auth = getAuth(app);
-
-// Initialize Google Auth Provider
-export const googleProvider = new GoogleAuthProvider();
-googleProvider.setCustomParameters({
-  prompt: 'select_account'
-});
-
 // Initialize Cloud Firestore using the configured database ID
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId); /* CRITICAL: The app will break without this line */
-
-// Helper: Sign in with Google Popup
-export const signInWithGoogle = async (): Promise<User | null> => {
-  try {
-    const result = await signInWithPopup(auth, googleProvider);
-    return result.user;
-  } catch (error: any) {
-    console.error('Google Sign-In Error:', error);
-    throw error;
-  }
-};
-
-// Helper: Sign Out
-export const logoutFirebase = async (): Promise<void> => {
-  try {
-    await signOut(auth);
-  } catch (error) {
-    console.error('Firebase Sign-Out Error:', error);
-    throw error;
-  }
-};
 
 // Helper: Save Audit Report to Cloud Firestore
 export const saveReportToFirestore = async (userId: string, report: AuditReport): Promise<string> => {
@@ -107,24 +69,33 @@ export const subscribeToUserReports = (
   userId: string, 
   callback: (reports: AuditReport[]) => void
 ) => {
-  const q = query(
-    collection(db, 'auditReports'),
-    where('userId', '==', userId)
-  );
+  try {
+    const q = query(
+      collection(db, 'auditReports'),
+      where('userId', '==', userId)
+    );
 
-  return onSnapshot(q, (snapshot) => {
-    const reports: AuditReport[] = [];
-    snapshot.forEach((docSnap) => {
-      reports.push({
-        ...(docSnap.data() as AuditReport),
-        id: docSnap.id
-      });
-    });
-    reports.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-    callback(reports);
-  }, (err) => {
-    console.error('Firestore listener error:', err);
-  });
+    return onSnapshot(
+      q, 
+      (snapshot) => {
+        const reports: AuditReport[] = [];
+        snapshot.forEach((docSnap) => {
+          reports.push({
+            ...(docSnap.data() as AuditReport),
+            id: docSnap.id
+          });
+        });
+        reports.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+        callback(reports);
+      }, 
+      (err) => {
+        console.warn('[Firestore] Real-time sync notice (falling back to local storage):', err?.message || err);
+      }
+    );
+  } catch (err) {
+    console.warn('[Firestore] Failed to initiate real-time reports listener:', err);
+    return () => {};
+  }
 };
 
 // Helper: Delete report from Firestore
@@ -159,28 +130,33 @@ export const subscribeToUserAlerts = (
   userId: string,
   callback: (alerts: DpoSecurityAlert[]) => void
 ) => {
-  const q = query(
-    collection(db, 'dpoAlerts'),
-    where('userId', '==', userId)
-  );
+  try {
+    const q = query(
+      collection(db, 'dpoAlerts'),
+      where('userId', '==', userId)
+    );
 
-  return onSnapshot(
-    q,
-    (snapshot) => {
-      const alerts: DpoSecurityAlert[] = [];
-      snapshot.forEach((docSnap) => {
-        alerts.push({
-          ...(docSnap.data() as DpoSecurityAlert),
-          id: docSnap.id
+    return onSnapshot(
+      q,
+      (snapshot) => {
+        const alerts: DpoSecurityAlert[] = [];
+        snapshot.forEach((docSnap) => {
+          alerts.push({
+            ...(docSnap.data() as DpoSecurityAlert),
+            id: docSnap.id
+          });
         });
-      });
-      alerts.sort(
-        (a, b) => new Date(b.sentAt).getTime() - new Date(a.sentAt).getTime()
-      );
-      callback(alerts);
-    },
-    (err) => {
-      console.error('Firestore alerts listener error:', err);
-    }
-  );
+        alerts.sort(
+          (a, b) => new Date(b.sentAt).getTime() - new Date(a.sentAt).getTime()
+        );
+        callback(alerts);
+      },
+      (err) => {
+        console.warn('[Firestore] Alerts sync notice:', err?.message || err);
+      }
+    );
+  } catch (err) {
+    console.warn('[Firestore] Failed to initiate real-time alerts listener:', err);
+    return () => {};
+  }
 };

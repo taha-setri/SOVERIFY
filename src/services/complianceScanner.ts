@@ -9,10 +9,18 @@ export async function runComplianceScan(targetInput: string): Promise<AuditRepor
       body: JSON.stringify({ target: targetInput })
     });
     if (res.ok) {
-      const data = await res.json();
-      if (data.report) {
-        return data.report;
+      const contentType = res.headers.get('content-type') || '';
+      if (contentType.includes('application/json')) {
+        const data = await res.json();
+        if (data.report) {
+          console.log('[Soverify Client] Live server-side audit report received successfully:', data.report.domain, 'Score:', data.report.score);
+          return data.report;
+        }
+      } else {
+        console.warn('[Soverify Client] /api/scan returned non-JSON content type:', contentType);
       }
+    } else {
+      console.warn('[Soverify Client] /api/scan returned status:', res.status);
     }
   } catch (err) {
     console.warn('Real /api/scan network check error, using resilient local analysis engine:', err);

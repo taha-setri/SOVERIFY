@@ -1,3 +1,4 @@
+export type Language = 'ar' | 'en' | 'fr';
 export type SeverityLevel = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
 
 export interface ComplianceGap {
@@ -79,11 +80,11 @@ export interface AuditReport {
   remediationPlan: RemediationWeek[];
   sovereigntyStatus: {
     isMoroccanHosting: boolean;
+    isMoroccoHosted?: boolean;
     location: string;
     asn: string;
     crossBorderTransferPermitRequired: boolean;
     ip?: string;
-    isMoroccoHosted?: boolean;
   };
   metrics: {
     tlsGrade: string;
@@ -308,5 +309,90 @@ export interface AuditTrailEvent {
   previousQuantumHash?: string;
   metadata?: Record<string, any>;
 }
+
+// -------------------------------------------------------------
+// New Sovereign Enterprise Features (RoPA, DPIA, Seal, Cadence)
+// -------------------------------------------------------------
+
+export interface RopaActivity {
+  id: string;
+  name: string;
+  nameAr: string;
+  purpose: string;
+  purposeAr: string;
+  legalBasis: 'Consent' | 'Contract' | 'LegalObligation' | 'PublicInterest' | 'VitalInterest';
+  legalBasisAr: string;
+  law0809Article: string;
+  dataCategories: string[];
+  dataCategoriesAr: string[];
+  dataSubjects: string[];
+  dataSubjectsAr: string[];
+  recipients: string[];
+  recipientsAr: string[];
+  retentionPeriod: string;
+  retentionPeriodAr: string;
+  isCrossBorder: boolean;
+  crossBorderCountry?: string;
+  securityMeasures: string[];
+  securityMeasuresAr: string[];
+  status: 'ACTIVE' | 'ARCHIVED' | 'UNDER_REVIEW';
+}
+
+export interface DpiaRiskItem {
+  id: string;
+  category: string;
+  categoryAr: string;
+  threatDescription: string;
+  threatDescriptionAr: string;
+  likelihood: 1 | 2 | 3 | 4; // 1: Low, 4: Critical
+  severity: 1 | 2 | 3 | 4;   // 1: Low, 4: Critical
+  riskScore: number;         // likelihood * severity (1-16)
+  mitigationMeasures: string;
+  mitigationMeasuresAr: string;
+  residualRisk: 'Low' | 'Medium' | 'High' | 'Critical';
+}
+
+export interface DpiaAssessment {
+  id: string;
+  targetDomain: string;
+  businessName: string;
+  date: string;
+  assessorName: string;
+  assessorRole: string;
+  systemDescription: string;
+  systemDescriptionAr: string;
+  processingNecessity: string;
+  processingNecessityAr: string;
+  isCndpPriorLicensingRequired: boolean; // Article 12 (Biometrics, Genetic, Health, High risk)
+  risks: DpiaRiskItem[];
+  overallRiskLevel: 'LOW' | 'MODERATE' | 'HIGH' | 'CRITICAL';
+  dpoConclusionAr: string;
+  dpoConclusionEn: string;
+  signatureHash?: string;
+}
+
+export interface TrustSealConfig {
+  theme: 'emerald' | 'gold' | 'dark' | 'glass';
+  size: 'compact' | 'standard' | 'expanded';
+  language: 'ar' | 'fr' | 'en';
+  showScore: boolean;
+  showSignature: boolean;
+  showMoroccoFlag: boolean;
+}
+
+export interface ContinuousAuditSchedule {
+  id: string;
+  domain: string;
+  frequency: 'weekly' | 'biweekly' | 'monthly';
+  alertEmail: string;
+  scoreThresholdAlert: number;
+  alertOnNewCookies: boolean;
+  alertOnCrossBorderHosting: boolean;
+  active: boolean;
+  lastRunDate?: string;
+  nextRunDate: string;
+  historyRunsCount: number;
+}
+
 
 
