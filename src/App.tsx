@@ -27,6 +27,9 @@ import { RopaRegistryModal } from './components/RopaRegistryModal';
 import { DpiaAssessmentModal } from './components/DpiaAssessmentModal';
 import { SovereignTrustSealModal } from './components/SovereignTrustSealModal';
 import { ContinuousAuditModal } from './components/ContinuousAuditModal';
+import { OfficialCertificateModal } from './components/OfficialCertificateModal';
+import { PenaltyCalculatorModal } from './components/PenaltyCalculatorModal';
+import { DsarPortalModal } from './components/DsarPortalModal';
 import { Footer } from './components/Footer';
 import { runComplianceScan } from './services/complianceScanner';
 import { triggerDpoSecurityAlertService, EmailDispatchResult } from './services/dpoNotificationService';
@@ -80,6 +83,9 @@ export default function App() {
   const [isDpiaModalOpen, setIsDpiaModalOpen] = useState<boolean>(false);
   const [isTrustSealModalOpen, setIsTrustSealModalOpen] = useState<boolean>(false);
   const [isContinuousAuditModalOpen, setIsContinuousAuditModalOpen] = useState<boolean>(false);
+  const [isCertificateOpen, setIsCertificateOpen] = useState<boolean>(false);
+  const [isPenaltyCalcOpen, setIsPenaltyCalcOpen] = useState<boolean>(false);
+  const [isDsarPortalOpen, setIsDsarPortalOpen] = useState<boolean>(false);
   const [emailDispatchResult, setEmailDispatchResult] = useState<EmailDispatchResult | null>(null);
   const [isDispatchingEmail, setIsDispatchingEmail] = useState<boolean>(false);
   const [dpoConsultationTopic, setDpoConsultationTopic] = useState<string>('');
@@ -329,6 +335,9 @@ export default function App() {
           });
         }}
         hasReport={!!currentReport}
+        onOpenPenaltyCalc={() => setIsPenaltyCalcOpen(true)}
+        onOpenCertificate={() => setIsCertificateOpen(true)}
+        onOpenDsarPortal={() => setIsDsarPortalOpen(true)}
         onDownloadPdf={() => {
           setIsPdfModalOpen(true);
           recordAuditEvent({
@@ -488,6 +497,10 @@ export default function App() {
                   const el = document.querySelector('input[type="text"]') as HTMLInputElement;
                   if (el) el.focus();
                 }}
+                onOpenPenaltyCalc={() => setIsPenaltyCalcOpen(true)}
+                onOpenCertificate={() => setIsCertificateOpen(true)}
+                onOpenDsarPortal={() => setIsDsarPortalOpen(true)}
+                onOpenSovereignMap={() => setIsSovereignMapModalOpen(true)}
               />
             )}
 
@@ -777,6 +790,30 @@ export default function App() {
         isOpen={isEmailAlertModalOpen}
         onClose={() => setIsEmailAlertModalOpen(false)}
         dispatchResult={emailDispatchResult}
+        lang={subLang}
+      />
+
+      {/* Official Law 08/09 Compliance Certificate Modal */}
+      <OfficialCertificateModal
+        report={currentReport}
+        isOpen={isCertificateOpen}
+        onClose={() => setIsCertificateOpen(false)}
+        lang={subLang}
+      />
+
+      {/* Law 08/09 Statutory Penalty & Financial Liability Calculator Modal */}
+      <PenaltyCalculatorModal
+        report={currentReport}
+        isOpen={isPenaltyCalcOpen}
+        onClose={() => setIsPenaltyCalcOpen(false)}
+        lang={subLang}
+      />
+
+      {/* Data Subject Rights (DSAR) Citizen Portal Generator Modal */}
+      <DsarPortalModal
+        report={currentReport}
+        isOpen={isDsarPortalOpen}
+        onClose={() => setIsDsarPortalOpen(false)}
         lang={subLang}
       />
     </div>

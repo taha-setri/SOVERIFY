@@ -18,7 +18,7 @@ import {
 import { AuditReport, ComplianceGap } from '../types';
 
 interface PenaltyCalculatorModalProps {
-  report: AuditReport;
+  report?: AuditReport | null;
   isOpen: boolean;
   onClose: () => void;
   lang: 'ar' | 'en';
@@ -46,92 +46,91 @@ export const PenaltyCalculatorModal: React.FC<PenaltyCalculatorModalProps> = ({
   lang
 }) => {
   const isAr = lang === 'ar';
+  const targetDomain = report?.domain || report?.target || 'mon-entreprise.ma';
 
   // Interactive Simulation Controls
   const [isRepeatOffense, setIsRepeatOffense] = useState(false);
   const [dataSubjectScale, setDataSubjectScale] = useState<number>(10000);
   const [hasCrossBorderBreach, setHasCrossBorderBreach] = useState(
-    report.sovereigntyStatus.crossBorderTransferPermitRequired || !report.sovereigntyStatus.isMoroccanHosting
+    Boolean(report?.sovereigntyStatus?.crossBorderTransferPermitRequired || !report?.sovereigntyStatus?.isMoroccanHosting)
   );
   const [lacksCndpDeclaration, setLacksCndpDeclaration] = useState(
-    !report.metrics.cndpDeclarationFound
+    Boolean(!report?.metrics?.cndpDeclarationFound)
   );
   const [inadequateSecurity, setInadequateSecurity] = useState(
-    report.metrics.tlsGrade !== 'A+' && report.metrics.tlsGrade !== 'A'
+    Boolean(report?.metrics?.tlsGrade && report.metrics.tlsGrade !== 'A+' && report.metrics.tlsGrade !== 'A')
   );
   const [cookieConsentDeficit, setCookieConsentDeficit] = useState(
-    report.metrics.cookieConsentScore < 70
+    Boolean((report?.metrics?.cookieConsentScore ?? 45) < 70)
   );
 
   if (!isOpen) return null;
 
   // Breakdown of statutory violations mapped to Law 08-09
-  const violations: LawViolationItem[] = useMemo(() => {
-    return [
-      {
-        article: 'المادة 53',
-        articleTitle: 'Article 53',
-        articleTitleAr: 'عدم التصريح المسبق لدى اللجنة الوطنية CNDP',
-        articleTitleEn: 'Failure to declare processing to CNDP',
-        minFine: 10000,
-        maxFine: 100000,
-        prisonRisk: false,
-        condition: lacksCndpDeclaration,
-        notesAr: 'يعاقب بغرامة من 10,000 إلى 100,000 درهم كل من أحدث معالجة دون التصريح المسبق المنصوص عليه في المادة 12.',
-        notesEn: 'Fine from 10,000 to 100,000 MAD for processing personal data without prior CNDP declaration (Art. 12).'
-      },
-      {
-        article: 'المادة 54',
-        articleTitle: 'Article 54',
-        articleTitleAr: 'المعالجة دون موافقة صريحة مسبقة للمستخدم (Consent)',
-        articleTitleEn: 'Processing without explicit data subject consent',
-        minFine: 20000,
-        maxFine: 200000,
-        prisonRisk: false,
-        condition: cookieConsentDeficit,
-        notesAr: 'يعاقب بغرامة من 20,000 إلى 200,000 درهم كل من عالج معطيات شخصية دون الرضا الصريح للشخص المعني.',
-        notesEn: 'Fine from 20,000 to 200,000 MAD for processing personal data without explicit unambiguous consent.'
-      },
-      {
-        article: 'المادة 56',
-        articleTitle: 'Article 56',
-        articleTitleAr: 'نقل معطيات شخصية نحو الخارج دون ترخيص CNDP',
-        articleTitleEn: 'Unauthorized cross-border data transfer',
-        minFine: 50000,
-        maxFine: 300000,
-        prisonRisk: true,
-        prisonTermAr: 'حبس من 3 أشهر إلى سنة وغرامة مالية',
-        prisonTermEn: 'Imprisonment 3 months to 1 year + fine',
-        condition: hasCrossBorderBreach,
-        notesAr: 'يعاقب بالحبس من 3 أشهر إلى سنة وبغرامة من 50,000 إلى 300,000 درهم أو بإحدى هاتين العقوبتين فقط كل من نقل معطيات إلى بلد أجنبي دون ترخيص CNDP.',
-        notesEn: 'Imprisonment 3 months to 1 year and fine 50,000 to 300,000 MAD for unauthorized cross-border data export.'
-      },
-      {
-        article: 'المادة 58',
-        articleTitle: 'Article 58',
-        articleTitleAr: 'الإخلال بالتدابير الأمنية والسرية والتشفير التقني',
-        articleTitleEn: 'Failure to enforce technical security & encryption',
-        minFine: 20000,
-        maxFine: 200000,
-        prisonRisk: false,
-        condition: inadequateSecurity,
-        notesAr: 'يعاقب بغرامة من 20,000 إلى 200,000 درهم كل من أهمل اتخاذ التدابير التقنية والتنظيمية الضرورية لحفظ أمن وسرية المعطيات.',
-        notesEn: 'Fine from 20,000 to 200,000 MAD for failure to enforce confidentiality and technical encryption measures.'
-      },
-      {
-        article: 'المادة 61',
-        articleTitle: 'Article 61',
-        articleTitleAr: 'عرقلة ممارسة حق الولوج والتصحيح والتعرض',
-        articleTitleEn: 'Obstructing citizen rights of access & rectification',
-        minFine: 20000,
-        maxFine: 100000,
-        prisonRisk: false,
-        condition: !report.metrics.userRightsPortalPresent,
-        notesAr: 'يعاقب بغرامة من 20,000 إلى 100,000 درهم كل من عرقل ممارسة حقوق الولوج أو التصحيح أو التعرض.',
-        notesEn: 'Fine from 20,000 to 100,000 MAD for denying or hindering data subject access/rectification rights.'
-      }
-    ];
-  }, [lacksCndpDeclaration, cookieConsentDeficit, hasCrossBorderBreach, inadequateSecurity, report]);
+  const violations: LawViolationItem[] = [
+    {
+      article: 'المادة 53',
+      articleTitle: 'Article 53',
+      articleTitleAr: 'عدم التصريح المسبق لدى اللجنة الوطنية CNDP',
+      articleTitleEn: 'Failure to declare processing to CNDP',
+      minFine: 10000,
+      maxFine: 100000,
+      prisonRisk: false,
+      condition: lacksCndpDeclaration,
+      notesAr: 'يعاقب بغرامة من 10,000 إلى 100,000 درهم كل من أحدث معالجة دون التصريح المسبق المنصوص عليه في المادة 12.',
+      notesEn: 'Fine from 10,000 to 100,000 MAD for processing personal data without prior CNDP declaration (Art. 12).'
+    },
+    {
+      article: 'المادة 54',
+      articleTitle: 'Article 54',
+      articleTitleAr: 'المعالجة دون موافقة صريحة مسبقة للمستخدم (Consent)',
+      articleTitleEn: 'Processing without explicit data subject consent',
+      minFine: 20000,
+      maxFine: 200000,
+      prisonRisk: false,
+      condition: cookieConsentDeficit,
+      notesAr: 'يعاقب بغرامة من 20,000 إلى 200,000 درهم كل من عالج معطيات شخصية دون الرضا الصريح للشخص المعني.',
+      notesEn: 'Fine from 20,000 to 200,000 MAD for processing personal data without explicit unambiguous consent.'
+    },
+    {
+      article: 'المادة 56',
+      articleTitle: 'Article 56',
+      articleTitleAr: 'نقل معطيات شخصية نحو الخارج دون ترخيص CNDP',
+      articleTitleEn: 'Unauthorized cross-border data transfer',
+      minFine: 50000,
+      maxFine: 300000,
+      prisonRisk: true,
+      prisonTermAr: 'حبس من 3 أشهر إلى سنة وغرامة مالية',
+      prisonTermEn: 'Imprisonment 3 months to 1 year + fine',
+      condition: hasCrossBorderBreach,
+      notesAr: 'يعاقب بالحبس من 3 أشهر إلى سنة وبغرامة من 50,000 إلى 300,000 درهم أو بإحدى هاتين العقوبتين فقط كل من نقل معطيات إلى بلد أجنبي دون ترخيص CNDP.',
+      notesEn: 'Imprisonment 3 months to 1 year and fine 50,000 to 300,000 MAD for unauthorized cross-border data export.'
+    },
+    {
+      article: 'المادة 58',
+      articleTitle: 'Article 58',
+      articleTitleAr: 'الإخلال بالتدابير الأمنية والسرية والتشفير التقني',
+      articleTitleEn: 'Failure to enforce technical security & encryption',
+      minFine: 20000,
+      maxFine: 200000,
+      prisonRisk: false,
+      condition: inadequateSecurity,
+      notesAr: 'يعاقب بغرامة من 20,000 إلى 200,000 درهم كل من أهمل اتخاذ التدابير التقنية والتنظيمية الضرورية لحفظ أمن وسرية المعطيات.',
+      notesEn: 'Fine from 20,000 to 200,000 MAD for failure to enforce confidentiality and technical encryption measures.'
+    },
+    {
+      article: 'المادة 61',
+      articleTitle: 'Article 61',
+      articleTitleAr: 'عرقلة ممارسة حق الولوج والتصحيح والتعرض',
+      articleTitleEn: 'Obstructing citizen rights of access & rectification',
+      minFine: 20000,
+      maxFine: 100000,
+      prisonRisk: false,
+      condition: !Boolean(report?.metrics?.userRightsPortalPresent),
+      notesAr: 'يعاقب بغرامة من 20,000 إلى 100,000 درهم كل من عرقل ممارسة حقوق الولوج أو التصحيح أو التعرض.',
+      notesEn: 'Fine from 20,000 to 100,000 MAD for denying or hindering data subject access/rectification rights.'
+    }
+  ];
 
   // Financial calculations
   const activeViolations = violations.filter(v => v.condition);
@@ -159,7 +158,7 @@ export const PenaltyCalculatorModal: React.FC<PenaltyCalculatorModalProps> = ({
                 <span className="text-xs px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 font-mono">MAD</span>
               </h3>
               <p className="text-xs text-slate-400 font-mono">
-                {report.domain || report.target}
+                {targetDomain}
               </p>
             </div>
           </div>

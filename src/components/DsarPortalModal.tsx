@@ -19,7 +19,7 @@ import {
 import { AuditReport } from '../types';
 
 interface DsarPortalModalProps {
-  report: AuditReport;
+  report?: AuditReport | null;
   isOpen: boolean;
   onClose: () => void;
   lang: 'ar' | 'en';
@@ -32,6 +32,8 @@ export const DsarPortalModal: React.FC<DsarPortalModalProps> = ({
   lang
 }) => {
   const isAr = lang === 'ar';
+  const targetDomain = report?.domain || report?.target || 'mon-entreprise.ma';
+  const businessName = report?.businessName || 'المؤسسة الوطنية المسؤولة';
   const [activeTab, setActiveTab] = useState<'simulator' | 'embed'>('simulator');
   const [copiedCode, setCopiedCode] = useState(false);
 
@@ -59,10 +61,10 @@ export const DsarPortalModal: React.FC<DsarPortalModalProps> = ({
   };
 
   const embedCode = `<!-- Soverify Law 08/09 Citizen Rights Portal Embed -->
-<div id="soverify-dsar-portal" data-domain="${report.domain || report.target}"></div>
+<div id="soverify-dsar-portal" data-domain="${targetDomain}"></div>
 <script src="https://soverify.ma/cdn/dsar-portal.v1.js" async defer></script>
 <noscript>
-  <a href="mailto:dpo@${report.domain || 'domain.ma'}?subject=Exercise%20Law%2008-09%20Rights">
+  <a href="mailto:dpo@${targetDomain}?subject=Exercise%20Law%2008-09%20Rights">
     Exercise Your Data Subject Rights (Law 08-09 / CNDP)
   </a>
 </noscript>`;
@@ -90,7 +92,7 @@ export const DsarPortalModal: React.FC<DsarPortalModalProps> = ({
                 {isAr ? 'بوابة ممارسة حقوق الأفراد (المواد 7، 8، 9 - قانون 08-09)' : 'Data Subject Rights (DSAR) Portal Generator'}
               </h3>
               <p className="text-xs text-slate-400 font-mono">
-                {report.businessName} • {report.domain || report.target}
+                {businessName} • {targetDomain}
               </p>
             </div>
           </div>

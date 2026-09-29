@@ -17,11 +17,19 @@ import {
 interface MinisterialPresentationCardProps {
   lang: 'ar' | 'en';
   onStartAuditNow: () => void;
+  onOpenPenaltyCalc?: () => void;
+  onOpenCertificate?: () => void;
+  onOpenDsarPortal?: () => void;
+  onOpenSovereignMap?: () => void;
 }
 
 export const MinisterialPresentationCard: React.FC<MinisterialPresentationCardProps> = ({
   lang,
-  onStartAuditNow
+  onStartAuditNow,
+  onOpenPenaltyCalc,
+  onOpenCertificate,
+  onOpenDsarPortal,
+  onOpenSovereignMap
 }) => {
   const isAr = lang === 'ar';
 
@@ -129,6 +137,118 @@ export const MinisterialPresentationCard: React.FC<MinisterialPresentationCardPr
               </p>
             </div>
           ))}
+        </div>
+      </div>
+
+      {/* Interactive Tool Suite Showcase - Instant Direct Access */}
+      <div className="rounded-3xl border border-white/10 bg-slate-950 p-6 space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/10 pb-4">
+          <div>
+            <h3 className="text-base font-bold text-white flex items-center gap-2">
+              <Scale className="h-5 w-5 text-emerald-400" />
+              <span>{isAr ? 'الأدوات السيادية التفاعلية الفورية (لجنة التحكيم والمعاينة الميدانية):' : 'Interactive Sovereign Tool Suite (Instant Live Demo):'}</span>
+            </h3>
+            <p className="text-xs text-slate-400 mt-0.5">
+              {isAr ? 'يمكنك تجربة واختبار هذه الأدوات التفاعلية فوراً بنقرة واحدة:' : 'Directly test and explore these institutional tools in real-time:'}
+            </p>
+          </div>
+          <span className="text-[11px] font-mono px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 font-bold self-start sm:self-auto">
+            LIVE TOOLS 2026
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {/* Tool 1: Penalty Calculator */}
+          {onOpenPenaltyCalc && (
+            <button
+              onClick={onOpenPenaltyCalc}
+              className="p-4 rounded-2xl border border-rose-500/30 bg-rose-950/20 hover:bg-rose-950/40 hover:border-rose-500/60 transition text-right flex flex-col justify-between gap-3 group cursor-pointer shadow-lg shadow-black/40"
+            >
+              <div className="flex items-center justify-between">
+                <div className="p-2 rounded-xl bg-rose-500/10 text-rose-400 group-hover:scale-110 transition">
+                  <Scale className="h-5 w-5" />
+                </div>
+                <span className="text-[10px] font-mono font-bold text-rose-300 px-2 py-0.5 rounded bg-rose-500/10">MAD</span>
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-white group-hover:text-rose-300 transition">
+                  {isAr ? '⚖️ حاسبة الغرامات والمخاطر' : '⚖️ Penalty Calculator'}
+                </h4>
+                <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">
+                  {isAr ? 'محاكاة العقوبات المالية والجنائية المترتبة على مخالفات المواد 53 و54 و56 و58.' : 'Simulate statutory fines up to 300,000 MAD and prison risks.'}
+                </p>
+              </div>
+            </button>
+          )}
+
+          {/* Tool 2: Compliance Certificate */}
+          {onOpenCertificate && (
+            <button
+              onClick={onOpenCertificate}
+              className="p-4 rounded-2xl border border-emerald-500/30 bg-emerald-950/20 hover:bg-emerald-950/40 hover:border-emerald-500/60 transition text-right flex flex-col justify-between gap-3 group cursor-pointer shadow-lg shadow-black/40"
+            >
+              <div className="flex items-center justify-between">
+                <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400 group-hover:scale-110 transition">
+                  <Award className="h-5 w-5" />
+                </div>
+                <span className="text-[10px] font-mono font-bold text-emerald-300 px-2 py-0.5 rounded bg-emerald-500/10">SHA-256</span>
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-white group-hover:text-emerald-300 transition">
+                  {isAr ? '📜 شهادة المطابقة الرقمية' : '📜 Official Certificate'}
+                </h4>
+                <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">
+                  {isAr ? 'استعراض وثيقة الاعتماد المشفرة مع رمز الاستجابة السريعة QR والختم المعتمد.' : 'View ISO-standard digital compliance certificate with QR & hash.'}
+                </p>
+              </div>
+            </button>
+          )}
+
+          {/* Tool 3: DSAR Citizen Portal */}
+          {onOpenDsarPortal && (
+            <button
+              onClick={onOpenDsarPortal}
+              className="p-4 rounded-2xl border border-teal-500/30 bg-teal-950/20 hover:bg-teal-950/40 hover:border-teal-500/60 transition text-right flex flex-col justify-between gap-3 group cursor-pointer shadow-lg shadow-black/40"
+            >
+              <div className="flex items-center justify-between">
+                <div className="p-2 rounded-xl bg-teal-500/10 text-teal-400 group-hover:scale-110 transition">
+                  <FileCheck2 className="h-5 w-5" />
+                </div>
+                <span className="text-[10px] font-mono font-bold text-teal-300 px-2 py-0.5 rounded bg-teal-500/10">DSAR</span>
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-white group-hover:text-teal-300 transition">
+                  {isAr ? '👤 بوابة حقوق المواطنين' : '👤 Citizen Rights Portal'}
+                </h4>
+                <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">
+                  {isAr ? 'مولد البوابة البرمجية القابلة للتضمين لممارسة حقوق الولوج والتصحيح (المادة 7/8/9).' : 'Embeddable portal generator for citizen data rights.'}
+                </p>
+              </div>
+            </button>
+          )}
+
+          {/* Tool 4: Sovereign Cloud Map */}
+          {onOpenSovereignMap && (
+            <button
+              onClick={onOpenSovereignMap}
+              className="p-4 rounded-2xl border border-indigo-500/30 bg-indigo-950/20 hover:bg-indigo-950/40 hover:border-indigo-500/60 transition text-right flex flex-col justify-between gap-3 group cursor-pointer shadow-lg shadow-black/40"
+            >
+              <div className="flex items-center justify-between">
+                <div className="p-2 rounded-xl bg-indigo-500/10 text-indigo-400 group-hover:scale-110 transition">
+                  <Fingerprint className="h-5 w-5" />
+                </div>
+                <span className="text-[10px] font-mono font-bold text-indigo-300 px-2 py-0.5 rounded bg-indigo-500/10">MAROC</span>
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-white group-hover:text-indigo-300 transition">
+                  {isAr ? '🗺️ خريطة السيادة السحابية' : '🗺️ Sovereign Hosting Map'}
+                </h4>
+                <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">
+                  {isAr ? 'تتبع مراكز البيانات المغربية السيادية (Casablanca, Rabat, Nouaceur).' : 'Moroccan Sovereign Datacenter & ASN routing atlas.'}
+                </p>
+              </div>
+            </button>
+          )}
         </div>
       </div>
 

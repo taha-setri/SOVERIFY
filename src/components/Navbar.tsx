@@ -15,7 +15,8 @@ import {
   Sparkles, 
   Globe, 
   FileClock, 
-  Atom 
+  Atom,
+  Award 
 } from 'lucide-react';
 import { UserAccount, Language } from '../types';
 
@@ -28,6 +29,9 @@ interface NavbarProps {
   onOpenPythonCode: () => void;
   hasReport?: boolean;
   onDownloadPdf?: () => void;
+  onOpenPenaltyCalc?: () => void;
+  onOpenCertificate?: () => void;
+  onOpenDsarPortal?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -38,7 +42,10 @@ export const Navbar: React.FC<NavbarProps> = ({
   user,
   onOpenPythonCode,
   hasReport,
-  onDownloadPdf
+  onDownloadPdf,
+  onOpenPenaltyCalc,
+  onOpenCertificate,
+  onOpenDsarPortal
 }) => {
   const isAr = lang === 'ar';
   const isFr = lang === 'fr';
@@ -122,6 +129,30 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Right Controls: Multilingual Switcher, PDF Download & Founder Badge */}
           <div className="flex items-center gap-2 sm:gap-3">
+            {/* Quick Access: Law 08/09 Penalty Calculator */}
+            {onOpenPenaltyCalc && (
+              <button
+                onClick={onOpenPenaltyCalc}
+                title={isAr ? 'حاسبة المخاطر والغرامات المالية (القانون 08-09)' : 'Law 08/09 Penalty Calculator'}
+                className="flex items-center gap-1.5 rounded-xl border border-rose-500/50 bg-rose-950/40 text-rose-300 hover:text-white hover:border-rose-400 hover:bg-rose-900/60 px-2.5 py-1.5 text-xs font-mono font-bold transition shadow-sm cursor-pointer"
+              >
+                <Scale className="h-3.5 w-3.5 text-rose-400" />
+                <span className="hidden sm:inline">{isAr ? 'حاسبة الغرامات' : 'Calculateur'}</span>
+              </button>
+            )}
+
+            {/* Quick Access: Compliance Certificate */}
+            {onOpenCertificate && (
+              <button
+                onClick={onOpenCertificate}
+                title={isAr ? 'شهادة المطابقة الرقمية CNDP' : 'Official Certificate'}
+                className="hidden md:flex items-center gap-1.5 rounded-xl border border-emerald-500/50 bg-emerald-950/40 text-emerald-300 hover:text-white hover:border-emerald-400 hover:bg-emerald-900/60 px-2.5 py-1.5 text-xs font-mono font-bold transition shadow-sm cursor-pointer"
+              >
+                <Award className="h-3.5 w-3.5 text-emerald-400" />
+                <span>{isAr ? 'الشهادة' : 'Certificat'}</span>
+              </button>
+            )}
+
             {/* Download PDF Report Button (When report is ready) */}
             {hasReport && onDownloadPdf && (
               <button
