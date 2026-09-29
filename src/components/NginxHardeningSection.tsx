@@ -32,7 +32,8 @@ export const NginxHardeningSection: React.FC<NginxHardeningSectionProps> = ({
   const isAr = lang === 'ar';
   const cleanDomain = domain ? domain.replace(/^https?:\/\//, '').split('/')[0] : 'banquepopulaire.ma';
 
-  const [isUnlocked, setIsUnlocked] = useState<boolean>(false);
+  // By default, show the fully generated sovereign code directly without blocking the user
+  const [isUnlocked, setIsUnlocked] = useState<boolean>(true);
   const [showKeyModal, setShowKeyModal] = useState<boolean>(false);
   const [adminKeyInput, setAdminKeyInput] = useState<string>('');
   const [keyError, setKeyError] = useState<string | null>(null);

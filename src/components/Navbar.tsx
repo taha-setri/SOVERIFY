@@ -57,7 +57,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 alt="Soverify Official Logo"
                 className="h-full w-full object-contain p-1"
                 onError={(e) => {
-                  (e.target as HTMLElement).src = '/logo.jpg';
+                  (e.target as HTMLImageElement).src = '/logo.jpg';
                 }}
               />
               <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-slate-950 animate-pulse" />

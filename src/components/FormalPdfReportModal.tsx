@@ -262,7 +262,7 @@ export const FormalPdfReportModal: React.FC<FormalPdfReportModalProps> = ({
                       alt="Soverify Logo" 
                       className="h-full w-full object-contain p-0.5" 
                       onError={(e) => {
-                        (e.target as HTMLElement).src = '/logo.jpg';
+                        (e.target as HTMLImageElement).src = '/logo.jpg';
                       }}
                     />
                   </div>

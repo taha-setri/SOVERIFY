@@ -31,7 +31,7 @@ export const CndpDeclarationModal: React.FC<CndpDeclarationModalProps> = ({
   lang: initialLang
 }) => {
   const [lang, setLang] = useState<'ar' | 'fr'>(initialLang === 'ar' ? 'ar' : 'fr');
-  const [companyName, setCompanyName] = useState(user?.company || 'المؤسسة الوطنية / SARL');
+  const [companyName, setCompanyName] = useState(user?.company || user?.organization || 'المؤسسة الوطنية / SARL');
   const [rcNumber, setRcNumber] = useState('RC-TET-2024-8921');
   const [iceNumber, setIceNumber] = useState('002891928000045');
   const [dpoName, setDpoName] = useState(user?.name || 'طه ستري (Taha Setri)');
@@ -41,7 +41,7 @@ export const CndpDeclarationModal: React.FC<CndpDeclarationModalProps> = ({
     'Gestion de la plateforme web, relation client, traçabilité des accès et conformité aux obligations de la Loi 08-09'
   );
   const [crossBorderTransfer, setCrossBorderTransfer] = useState<'yes' | 'no'>(
-    report.sovereigntyStatus.isMoroccoHosted ? 'no' : 'yes'
+    (report.sovereigntyStatus.isMoroccoHosted ?? report.sovereigntyStatus.isMoroccanHosting) ? 'no' : 'yes'
   );
   const [isCopied, setIsCopied] = useState(false);
   const printAreaRef = useRef<HTMLDivElement>(null);
@@ -292,7 +292,7 @@ export const CndpDeclarationModal: React.FC<CndpDeclarationModalProps> = ({
                   <span className="text-slate-500 block text-[10px] uppercase font-bold">{isAr ? 'موقع خوادم المعالجة وقواعد البيانات:' : 'Localisation des serveurs de stockage:'}</span>
                   <span className="font-bold text-slate-900">{serverHost}</span>
                   <span className="block text-[10px] text-slate-500 mt-0.5 font-mono">
-                    IP: {report.sovereigntyStatus.ip || '196.200.160.1'} ({report.sovereigntyStatus.isMoroccoHosted ? 'Maroc / National' : 'Étranger / International'})
+                    IP: {report.serverIp || report.sovereigntyStatus.ip || '196.200.160.1'} ({(report.sovereigntyStatus.isMoroccoHosted ?? report.sovereigntyStatus.isMoroccanHosting) ? 'Maroc / National' : 'Étranger / International'})
                   </span>
                 </div>
                 <div>

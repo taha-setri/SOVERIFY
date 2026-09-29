@@ -58,7 +58,10 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = ({
   onViewArticle,
   onConsultDpo,
   onTriggerDpoEmailAlert,
-  onViewAuditTrail
+  onViewAuditTrail,
+  onOpenCndpDeclaration,
+  onOpenSovereignMap,
+  onOpenCookieSimulator
 }) => {
   const isAr = lang === 'ar';
 

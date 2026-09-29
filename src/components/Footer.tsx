@@ -107,7 +107,7 @@ export const Footer: React.FC<FooterProps> = ({
                   alt="Soverify Official Brand Logo"
                   className="w-full h-full object-contain drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)]"
                   onError={(e) => {
-                    (e.target as HTMLElement).src = '/logo.jpg';
+                    (e.target as HTMLImageElement).src = '/logo.jpg';
                   }}
                 />
               </div>

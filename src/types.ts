@@ -82,6 +82,8 @@ export interface AuditReport {
     location: string;
     asn: string;
     crossBorderTransferPermitRequired: boolean;
+    ip?: string;
+    isMoroccoHosted?: boolean;
   };
   metrics: {
     tlsGrade: string;
@@ -169,6 +171,7 @@ export interface UserAccount {
   email: string;
   role: string;
   organization: string;
+  company?: string;
   photoURL?: string;
   isFirebaseUser?: boolean;
 }
